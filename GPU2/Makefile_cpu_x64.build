@@ -6,9 +6,9 @@ FFLAGS = -Wall -O3 -ffast-math
 #FFLAGS +=  -traceback
 #FFLAGS +=  -pg
 ifeq ($(avx), enable)
-FFLAGS += -march=core2 -mavx
+FFLAGS += -march=native -mavx
 else
-FFLAGS += -march=core2
+FFLAGS += -march=native
 endif
 
 LIBCUDA = -lcudart
