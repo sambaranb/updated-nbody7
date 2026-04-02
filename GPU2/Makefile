@@ -26,9 +26,9 @@ else
  endif
 endif
 
-FC       = gfortran
+FC       = gfortran-mp-14
 FFLAGS   = -O3 -Wall -march=native
-CXX      = g++
+CXX      = g++-mp-14
 CXXFLAGS = -O3 -Wall -march=native
 ifeq ($(avx), enable)
 FFLAGS   += -mavx
@@ -67,24 +67,34 @@ gpu: gpunb.gpu.o gpupot.gpu.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.
 	cp -f gpunb.gpu.o gpunb.o
 	cp -f gpupot.gpu.o gpupot.o
 	cp -f *.o ./Build
-	make gpu -C ./Build -f $(shell pwd)/Makefile.build -j4 $(MKOPTIONS)
+	make gpu -C ./Build -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS)
 	mv -f ./Build/nbody6 $(RUNDIR)/$(BINNAME).gpu
 
 avx: gpunb.avx.o gpupot.avx.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | Build $(RUNDIR)
 	cp -f gpunb.avx.o gpunb.o
 	cp -f gpupot.avx.o gpupot.o
 	cp -f *.o ./Build
-	make sse -C ./Build -f $(shell pwd)/Makefile_cpu_x64.build -j4 $(MKOPTIONS)
+	make sse -C ./Build -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS)
 	mv -f ./Build/nbody6 $(RUNDIR)/$(BINNAME).avx
 
 sse: gpunb.sse.o gpupot.sse.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | Build $(RUNDIR)
 	cp -f gpunb.sse.o gpunb.o
 	cp -f gpupot.sse.o gpupot.o
 	cp -f *.o ./Build
-	make sse -C ./Build -f $(shell pwd)/Makefile_cpu_x64.build -j4 $(MKOPTIONS)
+	make sse -C ./Build -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS)
 	mv -f ./Build/nbody6 $(RUNDIR)/$(BINNAME).sse
 
+cpu: gpunb.o gpupot.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.cpu.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | Build $(RUNDIR)
+	cp -p cnbint6.o cnbint.o
+	cp -p gpuirr.cpu.o gpuirr.o
+	cp -f *.o ./Build
+	make sse -C ./Build -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS)
+	mv -f ./Build/nbody6 $(RUNDIR)/$(BINNAME).cpu
+
 cnbint.o: ./lib/cnbint.cpp
+	$(CXX) $(CXXFLAGS) -c $^
+
+cnbint6.o: ./lib/cnbint6.cpp
 	$(CXX) $(CXXFLAGS) -c $^
 
 wtime.o: ./lib/wtime.cpp
@@ -136,6 +146,15 @@ gpunb.sse.o: lib/gpunb.sse.cpp
 	$(CXX) $(CXXFLAGS) -fopenmp $^ -c -o $@
 
 gpupot.sse.o: lib/gpupot.sse.cpp
+	$(CXX) $(CXXFLAGS) -fopenmp $^ -c -o $@
+
+gpuirr.cpu.o: ./irrlib/gpuirr.cpp
+	$(CXX) $(CXXFLAGS) -fopenmp -c $^ -o $@
+
+gpunb.o: lib/gpunb.cpp
+	$(CXX) $(CXXFLAGS) -fopenmp $^ -c -o $@
+
+gpupot.o: lib/gpupot.cpp
 	$(CXX) $(CXXFLAGS) -fopenmp $^ -c -o $@
 
 
