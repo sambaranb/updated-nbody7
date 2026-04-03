@@ -2,7 +2,11 @@
 #include <cmath>
 #include <cassert>
 
-#define TMAX 8
+#ifdef WITH_MAX_THREADS
+#define TMAX 128
+#else
+#define TMAX 64
+#endif
 #if 1
 #include <omp.h>
 #else
@@ -71,10 +75,12 @@ void GPUNB_send(
 void GPUNB_regf(
 		int ni,
 		double h2d[],
+		double dtr[],
 		double xid[][3],
 		double vid[][3],
 		double acc[][3],
 		double jrk[][3],
+		double pot[],
 		int lmax,
 		int nbmax,
 		int *listbase){
@@ -86,28 +92,38 @@ void GPUNB_regf(
 		int *nblist = nblistbuf[tid];
 		float ax=0, ay=0, az=0;
 		float jx=0, jy=0, jz=0;
-		float xi[3] = {xid[i][0], xid[i][1], xid[i][2]};
-		float vi[3] = {vid[i][0], vid[i][1], vid[i][2]};
+		float poti=0;
+		float xi[3] = {(float)xid[i][0], (float)xid[i][1], (float)xid[i][2]};
+		float vi[3] = {(float)vid[i][0], (float)vid[i][1], (float)vid[i][2]};
 		float h2 = h2d[i];
+		float dtri = dtr[i];
 		int nnb = 0;
 		for(int j=0; j<nbody; j++){
 			Jparticle &jp = jp_host[j];
 			float dx = jp.x[0] - xi[0];
 			float dy = jp.x[1] - xi[1];
 			float dz = jp.x[2] - xi[2];
-			float r2 = dx*dx + dy*dy + dz*dz;
-			if(r2 < h2){
-				nblist[nnb++] = j;
-				continue;
-			}
 			float dvx = jp.v[0] - vi[0];
 			float dvy = jp.v[1] - vi[1];
 			float dvz = jp.v[2] - vi[2];
+			float dxp = dx + dtri * dvx;
+			float dyp = dy + dtri * dvy;
+			float dzp = dz + dtri * dvz;
+			float r2 = dx*dx + dy*dy + dz*dz;
+			float r2p = dxp*dxp + dyp*dyp + dzp*dzp;
+			float mh2 = jp.m * h2;
+			float r2min = (r2 < r2p) ? r2 : r2p;
+			if(r2min < mh2){
+				nblist[nnb++] = j;
+				continue;
+			}
 			float rv = dx*dvx + dy*dvy + dz*dvz;
 			float rinv2 = 1.f/r2;
 			float rinv1 = sqrtf(rinv2);
 			rv *= -3.f * rinv2;
-			float rinv3 = jp.m * rinv1 * rinv2;
+			float mrinv1 = jp.m * rinv1;
+			poti += mrinv1;
+			float rinv3 = mrinv1 * rinv2;
 			ax += rinv3 * dx;
 			ay += rinv3 * dy;
 			az += rinv3 * dz;
@@ -121,6 +137,7 @@ void GPUNB_regf(
 		jrk[i][0] = jx;
 		jrk[i][1] = jy;
 		jrk[i][2] = jz;
+		pot[i] = poti;
 		// store nblist in FORTRAN style
 		int *nnbp = listbase + lmax * i;
 		int *nblistp = nnbp + 1;
@@ -134,22 +151,6 @@ void GPUNB_regf(
 			}
 		}
 	}
-	// printf("gpu: %e %e %e %d\n", xid[0][0], acc[0][0], jrk[0][0], *listbase);
-#if 1
-	if(ni > 0){
-		FILE *fp = fopen("Force.hst", "w");
-		assert(fp);
-		for(int i=0; i<ni; i++){
-			int nnb =  listbase[i*lmax];
-			fprintf(fp, "%d %9.2e %9.2e %9.2e %9.2e %9.2e %9.2e %d\n",
-					i, acc[i][0], acc[i][1], acc[i][2], 
-					   jrk[i][0], jrk[i][1], jrk[i][2], nnb);
-		}
-		fprintf(fp, "\n");
-		fclose(fp);
-		exit(1);
-	}
-#endif
 }
 
 extern "C" {
@@ -169,13 +170,15 @@ extern "C" {
 	void gpunb_regf_(
 			int *ni,
 			double h2[],
+			double dtr[],
 			double xi[][3],
 			double vi[][3],
 			double acc[][3],
 			double jrk[][3],
+			double pot[],
 			int *lmax,
 			int *nbmax,
 			int *list){ // list[][lmax]
-		GPUNB_regf(*ni, h2, xi, vi, acc, jrk, *lmax, *nbmax, list);
+		GPUNB_regf(*ni, h2, dtr, xi, vi, acc, jrk, pot, *lmax, *nbmax, list);
 	}
 }

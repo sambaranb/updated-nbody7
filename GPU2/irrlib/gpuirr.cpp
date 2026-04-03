@@ -59,7 +59,7 @@ struct Predictor{
 };
 
 struct NBlist{
-	enum{ NB_MAX = 511 };
+	enum{ NB_MAX = 699 + 128 }; // from gpuirr.sse.cpp
 	int nnb;
 	int nb[NB_MAX];
 
@@ -200,9 +200,11 @@ static void gpuirr_pred_act(
 #pragma omp parallel for
 	for(int i=0; i<npred; i++){
 		const int j = ulist[i];
-		const int j1 = ulist[i+1];
-		__builtin_prefetch(&ptcl[j1]);
-		__builtin_prefetch(&pred[j1]);
+		if(i+1 < npred){
+			const int j1 = ulist[i+1];
+			__builtin_prefetch(&ptcl[j1]);
+			__builtin_prefetch(&pred[j1]);
+		}
 		pred[j] = Predictor(ptcl[j], ti);
 	}
 	const double t1 = get_wtime();

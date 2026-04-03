@@ -1,5 +1,5 @@
-FC = gfortran-mp-14 -fPIC
-FFLAGS = -Wall -O3 -ffast-math
+#FC = gfortran
+FFLAGS = -Wall -O3 -ffast-math -fPIC
 #FFLAGS += -mcmodel=medium
 #FFLAGS +=  -O3 -fbounds-check
 #FFLAGS = -g -O0
@@ -13,18 +13,23 @@ endif
 
 LIBCUDA = -lcudart
 
-#LD_GPU = gfortran-mp-14 -lstdc++ -fopenmp $(LIBCUDA)
-LD_GPU = gfortran-mp-14
+#LD_GPU = gfortran -lstdc++ -fopenmp $(LIBCUDA)
+LD_GPU = $(FC)
 LDGPU_OPT = -lstdc++ -fopenmp $(LIBCUDA)
 LDGPU_OPT += -fPIC
 #LDGPU_OPT += --no-relax
 #LDGPU_OPT += -B /usr/share/libhugetlbfs -Wl,--hugetlbfs-link=B
 #LDGPU_OPT += -L /users/sambaran/libhugetlbfs/lib64/ -B /users/sambaran/libhugetlbfs/share/libhugetlbfs/ -Wl,--hugetlbfs-link=B 
 
-#LD_SSE = gfortran-mp-14 -lstdc++ -fopenmp
-LD_SSE = gfortran-mp-14
+#LD_SSE = gfortran -lstdc++ -fopenmp
+LD_SSE = $(FC)
 LDSSE_OPT = -lstdc++ -fopenmp
 #LDSSE_OPT += -B /usr/share/libhugetlbfs -Wl,--hugetlbfs-link=B
+
+#LD_CPU = gfortran -lstdc++ -fopenmp
+LD_CPU = $(FC)
+LDCPU_OPT = -lstdc++ -fopenmp
+#LDCPU_OPT += -B /usr/share/libhugetlbfs -Wl,--hugetlbfs-link=B
 
 #default value of chainmode is chain
 chainmode ?= chain
@@ -157,6 +162,9 @@ gpu: $(OBJECTS)
 
 sse: $(OBJECTS)
 	$(LD_SSE) $(FFLAGS) $(OBJECTS) $(LDSSE_OPT) -o nbody6
+
+cpu: $(OBJECTS)
+	$(LD_CPU) $(FFLAGS) $(OBJECTS) $(LDCPU_OPT) -o nbody6
 
 clean:
 	rm -f *.o
