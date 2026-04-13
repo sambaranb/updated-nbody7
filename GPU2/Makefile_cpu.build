@@ -166,5 +166,11 @@ sse: $(OBJECTS)
 cpu: $(OBJECTS)
 	$(LD_CPU) $(FFLAGS) $(OBJECTS) $(LDCPU_OPT) -o nbody6
 
+LD_METAL = $(FC)
+LDMETAL_OPT = -lstdc++ -fopenmp -lobjc -framework Metal -framework Foundation
+
+metal: $(OBJECTS)
+	$(LD_METAL) $(FFLAGS) $(OBJECTS) $(LDMETAL_OPT) -o nbody6
+
 clean:
 	rm -f *.o

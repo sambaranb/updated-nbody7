@@ -92,6 +92,16 @@ cpu: gpunb.o gpupot.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o start.o adjus
 	make cpu -C ./Build -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
 	mv -f ./Build/nbody6 $(RUNDIR)/$(BINNAME).cpu
 
+metal: gpunb.metallib gpunb.metal.o gpupot.metallib gpupot.metal.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.cpu.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | Build $(RUNDIR)
+	cp -f gpunb.metal.o gpunb.o
+	cp -f gpupot.metal.o gpupot.o
+	cp -p cnbint6.o cnbint.o
+	cp -p gpuirr.cpu.o gpuirr.o
+	cp -f *.o ./Build
+	cp -f *.metallib ./Build
+	make metal -C ./Build -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
+	mv -f ./Build/nbody6 $(RUNDIR)/$(BINNAME).metal
+
 cnbint.o: ./lib/cnbint.cpp
 	$(CXX) $(CXXFLAGS) -c $^
 
@@ -158,7 +168,24 @@ gpunb.o: lib/gpunb.cpp
 gpupot.o: lib/gpupot.cpp
 	$(CXX) $(CXXFLAGS) -fopenmp $^ -c -o $@
 
+# Metal shader and host compilation (requires Apple clang)
+METALCC = xcrun -sdk macosx metal
+OBJCXX  = clang++
+
+gpupot.metallib: lib/gpupot.metal
+	$(METALCC) -c $^ -o gpupot.air
+	xcrun -sdk macosx metallib gpupot.air -o $@
+
+gpupot.metal.o: lib/gpupot.metal.mm
+	$(OBJCXX) -O3 -Wall -fobjc-arc -c $^ -o $@
+
+gpunb.metallib: lib/gpunb.metal
+	$(METALCC) -c $^ -o gpunb.air
+	xcrun -sdk macosx metallib gpunb.air -o $@
+
+gpunb.metal.o: lib/gpunb.metal.mm
+	$(OBJCXX) -O3 -Wall -fobjc-arc -c $^ -o $@
 
 clean:
-	rm -f *.o *.s ./Build/*.o
+	rm -f *.o *.s *.air *.metallib ./Build/*.o
 
