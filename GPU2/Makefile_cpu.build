@@ -11,7 +11,7 @@ else
 FFLAGS += -march=native
 endif
 
-LIBCUDA = -lcudart
+LIBCUDA = -L $(CUDA_PATH)/lib64 -lcudart
 
 #LD_GPU = gfortran -lstdc++ -fopenmp $(LIBCUDA)
 LD_GPU = $(FC)
