@@ -50,7 +50,7 @@ endif
 NVCC += -DWITH_CUDA5
 NVCC += -DWITH_MAX_THREADS
 
-RUNDIR = ./run_ampere
+RUNDIR = ./run_versions
 
 ifeq ($(avx), enable)
 all: gpu avx
