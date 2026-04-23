@@ -1147,6 +1147,11 @@
 *        IF(I.EQ.IGHOST.OR.BODY(I).LE.0.0) RM0 = M1
          CALL TRDOT(I,DTM,M1)
          TEV(I) = TEV(I) + DTM
+*        Safety: ensure TEV advances past TIME to prevent GO TO 5 loop
+*        when TRDOT returns DTM=0 at a stellar evolution transition
+*        boundary (e.g. naked He giant at end of nuclear burning, where
+*        hrdiag disagrees between DO 200 MC=0 and DO 220 MC>0 calls).
+         IF (TEV(I).LE.TIME) TEV(I) = 1.000002d0*TIME
          IF(IHDOT.EQ.2)THEN
             TEV(I0) = TEV(I)
             IF(NAME(IGHOST).LT.0.OR.NAME(IGHOST).GT.NZERO)THEN

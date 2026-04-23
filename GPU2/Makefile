@@ -26,18 +26,18 @@ else
  endif
 endif
 
-FC       = gfortran-mp-14 
+FC       = gfortran
 FFLAGS   = -O3 -Wall -march=native
-CXX      = g++-mp-14
+CXX      = g++
 CXXFLAGS = -O3 -Wall -march=native
 ifeq ($(avx), enable)
 FFLAGS   += -mavx
 CXXFLAGS += -mavx
 endif
 
-#CUDA_PATH = /usr/local/cuda
+CUDA_PATH = /usr/local/cuda
 #SDK_PATH  = /usr/local/cuda_sdk
-SDK_PATH  = ~/cuda-samples
+SDK_PATH  = /usr/local/cuda-samples
 
 NVCC = nvcc
 NVCC += -arch=sm_86 -Xptxas -v
@@ -68,7 +68,7 @@ gpu: gpunb.gpu.o gpupot.gpu.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.
 	cp -f gpunb.gpu.o gpunb.o
 	cp -f gpupot.gpu.o gpupot.o
 	cp -f *.o ./Build
-	make gpu -C ./Build -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
+	make gpu -C ./Build -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC) CUDA_PATH=$(CUDA_PATH)
 	mv -f ./Build/nbody6 $(RUNDIR)/$(BINNAME).gpu
 
 avx: gpunb.avx.o gpupot.avx.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | Build $(RUNDIR)
@@ -85,12 +85,24 @@ sse: gpunb.sse.o gpupot.sse.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.
 	make sse -C ./Build -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
 	mv -f ./Build/nbody6 $(RUNDIR)/$(BINNAME).sse
 
-cpu: gpunb.o gpupot.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.cpu.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | Build $(RUNDIR)
+cpu: gpunb.cpu.o gpupot.cpu.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.cpu.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | Build $(RUNDIR)
+	cp -f gpunb.cpu.o gpunb.o
+	cp -f gpupot.cpu.o gpupot.o
 	cp -p cnbint6.o cnbint.o
 	cp -p gpuirr.cpu.o gpuirr.o
 	cp -f *.o ./Build
 	make cpu -C ./Build -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
 	mv -f ./Build/nbody6 $(RUNDIR)/$(BINNAME).cpu
+
+metal: gpunb.metallib gpunb.metal.o gpupot.metallib gpupot.metal.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.cpu.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | Build $(RUNDIR)
+	cp -f gpunb.metal.o gpunb.o
+	cp -f gpupot.metal.o gpupot.o
+	cp -p cnbint6.o cnbint.o
+	cp -p gpuirr.cpu.o gpuirr.o
+	cp -f *.o ./Build
+	cp -f *.metallib ./Build
+	make metal -C ./Build -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
+	mv -f ./Build/nbody6 $(RUNDIR)/$(BINNAME).metal
 
 cnbint.o: ./lib/cnbint.cpp
 	$(CXX) $(CXXFLAGS) -c $^
@@ -125,6 +137,9 @@ intgrt.o: intgrt.omp.f
 intgrt.s: intgrt.omp.f
 	$(FC) $(FFLAGS) -fopenmp $^ -S -o $@
 
+start.o: start.f
+	$(FC) $(FFLAGS) -fopenmp $^ -c -o $@
+
 gpunb.gpu.o: lib/gpunb.velocity.cu
 	$(NVCC) $^ -c -o $@
 
@@ -152,13 +167,30 @@ gpupot.sse.o: lib/gpupot.sse.cpp
 gpuirr.cpu.o: ./irrlib/gpuirr.cpp
 	$(CXX) $(CXXFLAGS) -fopenmp -c $^ -o $@
 
-gpunb.o: lib/gpunb.cpp
+gpunb.cpu.o: lib/gpunb.cpp
 	$(CXX) $(CXXFLAGS) -DWITH_MAX_THREADS -fopenmp $^ -c -o $@
 
-gpupot.o: lib/gpupot.cpp
+gpupot.cpu.o: lib/gpupot.cpp
 	$(CXX) $(CXXFLAGS) -fopenmp $^ -c -o $@
 
+# Metal shader and host compilation (requires Apple clang)
+METALCC = xcrun -sdk macosx metal
+OBJCXX  = clang++
+
+gpupot.metallib: lib/gpupot.metal
+	$(METALCC) -c $^ -o gpupot.air
+	xcrun -sdk macosx metallib gpupot.air -o $@
+
+gpupot.metal.o: lib/gpupot.metal.mm
+	$(OBJCXX) -O3 -Wall -fobjc-arc -c $^ -o $@
+
+gpunb.metallib: lib/gpunb.metal
+	$(METALCC) -c $^ -o gpunb.air
+	xcrun -sdk macosx metallib gpunb.air -o $@
+
+gpunb.metal.o: lib/gpunb.metal.mm
+	$(OBJCXX) -O3 -Wall -fobjc-arc -c $^ -o $@
 
 clean:
-	rm -f *.o *.s ./Build/*.o
+	rm -f *.o *.s *.air *.metallib ./Build/*.o
 
