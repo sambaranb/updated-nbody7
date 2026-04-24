@@ -5,6 +5,7 @@
 *       ---------------------
 *
       INCLUDE 'common6.h'
+      INCLUDE 'amuse.h'
       REAL*8  RSAVE(3,2*KMAX),VSAVE(3,2*KMAX),BSAVE(2*KMAX)
       real*8 G, M_sun, R_sun, pc, Km, Kmps
       real*8 mscale, lscale, vscale
@@ -18,8 +19,11 @@
       Km = 1.0D+05
       Kmps = 1.0D+05
 *
-*       Read virial ratio, rotation scaling factors, tidal radius & SMAX.
-      READ (5,*)  Q, VXROT, VZROT, RTIDE, SMAX
+*       Read virial ratio, rotation scaling factors, tidal radius & SMAX
+*       (skipped under AMUSE; interface setters supply these values).
+      IF (amusein.EQ.0) THEN
+          READ (5,*)  Q, VXROT, VZROT, RTIDE, SMAX
+      END IF
 *       Note RTIDE should be non-zero for isolated systems (cf. CALL LAGR).
       RSPH2 = RTIDE
       QVIR = Q
