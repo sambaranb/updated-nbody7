@@ -50,7 +50,8 @@ endif
 
 ifneq ($(ksblock), on)
 SOURCE = \
-nbody6.f adjust.f assess.f bindat.f binev.f binout.f binpop.f \
+nbody6.f nbody6_main.f intamuse.f \
+adjust.f assess.f bindat.f binev.f binout.f binpop.f \
 block.f bodies.f brake.f brake2.f brake3.f bsetid.f chaos0.f \
 chaos.f check.f checkl.f chrect.f clint.f cloud.f cloud0.f \
 cmbody.f cmcorr.f cmfirr.f cmfreg.f coal.f comenv.f core.f \
@@ -107,7 +108,8 @@ kscorr.f ksin2.f   ksinit.f ksint.f   ksintp.f kslist.f ksmod.f  ksperi.f \
 kspert2.f kspoly.f kspred.f  ksrect.f ksreg.f  ksres.f  ksres2.f \
 ksrot.f  ksterm.f  kstide.f lagr.f    lagr2.f  levels.f magbrk.f matrix.f \
 mdot.f   merge.f   merge2.f mix.f     mloss.f  mlwind.f modify.f mrenv.f  \
-mtrace.f mydump.f  nbhist.f nbint.f   nblist.f nbody6.f nbpot.f  nbrem.f  \
+mtrace.f mydump.f  nbhist.f nbint.f   nblist.f nbody6.f nbody6_main.f \
+intamuse.f nbpot.f  nbrem.f  \
 nbrest.f nbsort.f  nbtide.f newreg.f  newsys.f newtev.f newton.f \
 nstab.f  ntint.f   offset.f orbit.f   output.f peri.f   permit.f pfac.f   \
 plpot1.f pnpert2.f poti.f   premsf.f  proto_star.f qpmod3.f qpmod4.f \

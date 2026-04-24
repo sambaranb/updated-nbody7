@@ -5,6 +5,7 @@
 *       -------------------
 *
       INCLUDE 'common6.h'
+      INCLUDE 'amuse.h'
       REAL*8  RAN2
 *
 *
@@ -20,15 +21,18 @@
       IDUM1 = KDUM
 *
 *       Read IMF parameters, # primordials, Z-abundance, epoch & HR interval.
-      READ (5,*) ALPHAS, BODY1, BODYN, NBIN0, NHI0, ZMET, EPOCH0,
-     &           DTPLOT, RPLM
+*       Also read BSE parameters from 'input_bse'. Skipped under AMUSE.
+      IF (amusein.EQ.0) THEN
+          READ (5,*) ALPHAS, BODY1, BODYN, NBIN0, NHI0, ZMET, EPOCH0,
+     &               DTPLOT, RPLM
 *
-      WRITE (6,*) "Reading BSE input data from file 'input_bse'..."
-      OPEN(UNIT=222, FILE='input_bse', STATUS='OLD')
-      READ(222,*)neta,bwind,hewind,wconst,alpha1,lambda
-      READ(222,*)ceflag,tflag,ifflag,wdflag,bhflag,nsflag,mxns
-      READ(222,*)psflag,kmech,ecflag,edflag
-      READ(222,*)disp,beta,psii,acc2,epsnov,ftzacc,fmrg,eddfac,gamm1
+          WRITE (6,*) "Reading BSE input data from file 'input_bse'..."
+          OPEN(UNIT=222, FILE='input_bse', STATUS='OLD')
+          READ(222,*)neta,bwind,hewind,wconst,alpha1,lambda
+          READ(222,*)ceflag,tflag,ifflag,wdflag,bhflag,nsflag,mxns
+          READ(222,*)psflag,kmech,ecflag,edflag
+          READ(222,*)disp,beta,psii,acc2,epsnov,ftzacc,fmrg,eddfac,gamm1
+      END IF
 *
       IF (N + 2*NBIN0 + 2*NHI0.GE.NMAX - 2) THEN
           WRITE (6,2)  N, NBIN0, NHI0

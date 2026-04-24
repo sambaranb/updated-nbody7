@@ -26,9 +26,18 @@
 *       KS Block-step regularization: Keigo Nitadori & Sverre.
 *       ......................................................
 *
-      PROGRAM NBODY6
+      SUBROUTINE NBODY6
+*
+*       Initialization entry point for NBODY7.
+*       --------------------------------------
+*       This is a SUBROUTINE (not PROGRAM) so that both the standalone
+*       driver (Block/nbody6_main.f) and the AMUSE worker can invoke it.
+*       It performs the initial setup (or restart) only and RETURNs.
+*       The time-stepping outer loop lives in SUBROUTINE INTAMUSE
+*       (Block/intamuse.f); the standalone driver calls it in a DO loop.
 *
       INCLUDE 'common6.h'
+      INCLUDE 'amuse.h'
       EXTERNAL MERGE
 *
 *
@@ -36,8 +45,13 @@
       CALL CPUTIM(CPU0)
       WTOT0 = 0.0
 *
-*       Read start/restart indicator & CPU time.
-      READ (5,*)  KSTART, TCOMP
+*       Read start/restart indicator & CPU time (skipped under AMUSE).
+      IF (amusein.EQ.0) THEN
+          READ (5,*)  KSTART, TCOMP
+      ELSE
+          KSTART = KSTART_AMUSE
+          TCOMP  = TCOMP_AMUSE
+      END IF
 *
       IF (KSTART.EQ.1) THEN
 *
@@ -67,46 +81,6 @@
           END IF
       END IF
 *
-*       Advance solutions until next output or change of procedure.
-    1 CALL INTGRT
-*
-      IF (IPHASE.EQ.1) THEN
-*       Prepare new KS regularization.
-          CALL KSREG
-*
-      ELSE IF (IPHASE.EQ.2) THEN
-*       Terminate KS regularization.
-          CALL KSTERM
-*
-      ELSE IF (IPHASE.EQ.3) THEN
-*       Perform energy check & parameter adjustments and print diagnostics.
-          CALL ADJUST
-*
-      ELSE IF (IPHASE.EQ.4) THEN
-*       Switch to unperturbed three-body regularization.
-          ISUB = 0
-          CALL TRIPLE(ISUB)
-*
-      ELSE IF (IPHASE.EQ.5) THEN
-*       Switch to unperturbed four-body regularization.
-          ISUB = 0
-          CALL QUAD(ISUB)
-*
-*       Adopt c.m. approximation for inner binary in hierarchical triple.
-      ELSE IF (IPHASE.EQ.6) THEN
-          CALL MERGE
-*
-      ELSE IF (IPHASE.EQ.7) THEN
-*       Restore old binary in hierarchical configuration.
-          CALL RESET
-*
-*       Begin chain regularization.
-      ELSE IF (IPHASE.EQ.8) THEN
-          ISUB = 0
-          CALL CHAIN(ISUB)
-      END IF
-*
-*       Continue integration.
-      GO TO 1
+      RETURN
 *
       END

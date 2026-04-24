@@ -5,17 +5,26 @@
 *       ----------------
 *
       INCLUDE 'common6.h'
+      INCLUDE 'amuse.h'
       EXTERNAL VERIFY
 *
 *
 *       Make a formal call to define input parameters & counters.
       CALL DEFINE
 *
-*       Read & print the main input parameters.
-      READ (5,*)  N, NFIX, NCRIT, NRAND, NNBMAX, NRUN
-      READ (5,*)  ETAI, ETAR, RS0, DTADJ, DELTAT, TCRIT, QE, RBAR, ZMBAR
-      READ (5,*)  (KZ(J),J=1,50)
-      READ (5,*)  DTMIN, RMIN, ETAU, ECLOSE, GMIN, GMAX
+*       Read & print the main input parameters (skipped under AMUSE;
+*       values are expected to have been injected via the interface).
+      IF (amusein.EQ.0) THEN
+          READ (5,*)  N, NFIX, NCRIT, NRAND, NNBMAX, NRUN
+          READ (5,*)  ETAI, ETAR, RS0, DTADJ, DELTAT, TCRIT, QE, RBAR,
+     &                ZMBAR
+          READ (5,*)  (KZ(J),J=1,50)
+          READ (5,*)  DTMIN, RMIN, ETAU, ECLOSE, GMIN, GMAX
+      ELSE
+*       Mirror AMUSE-supplied values into the standard NBODY6 slots.
+          NRAND = NRAND_AMUSE
+          RS0   = RS0_AMUSE
+      END IF
 *
       WRITE (6,10)
    10 FORMAT (/////,15X,'N  NFIX  NCRIT  NRAND  NNBMAX  NRUN')
