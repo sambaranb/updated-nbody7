@@ -168,6 +168,12 @@ sse: $(OBJECTS)
 cpu: $(OBJECTS)
 	$(LD_CPU) $(FFLAGS) $(OBJECTS) $(LDCPU_OPT) -o nbody6
 
+# Build all objects but skip the final link. Used by the AMUSE worker
+# build, which only needs the .o files (which it then archives into
+# libnbody7.a) and supplies its own main via interface.f90.
+.PHONY: cpu-objects
+cpu-objects: $(OBJECTS)
+
 LD_METAL = $(FC)
 LDMETAL_OPT = -lstdc++ -fopenmp -lobjc -framework Metal -framework Foundation
 

@@ -26,9 +26,9 @@ else
  endif
 endif
 
-FC       = gfortran
+FC       = gfortran-mp-14
 FFLAGS   = -O3 -Wall -march=native
-CXX      = g++
+CXX      = g++-mp-14
 CXXFLAGS = -O3 -Wall -march=native
 ifeq ($(avx), enable)
 FFLAGS   += -mavx
@@ -93,6 +93,19 @@ cpu: gpunb.cpu.o gpupot.cpu.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o start
 	cp -f *.o ./Build
 	make cpu -C ./Build -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
 	mv -f ./Build/nbody6 $(RUNDIR)/$(BINNAME).cpu
+
+# Same Stage-1 + Stage-2 object compilation as `cpu`, but stops before
+# the throwaway link of `nbody6`. Used by the AMUSE-nbody7 worker build
+# which archives the resulting Build/*.o into libnbody7.a and supplies
+# its own main. Keeps the AMUSE path independent of platform-specific
+# C++ stdlib / system-SDK linker quirks (e.g. -lstdc++ vs -lc++).
+cpu-objects: gpunb.cpu.o gpupot.cpu.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.cpu.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | Build
+	cp -f gpunb.cpu.o gpunb.o
+	cp -f gpupot.cpu.o gpupot.o
+	cp -p cnbint6.o cnbint.o
+	cp -p gpuirr.cpu.o gpuirr.o
+	cp -f *.o ./Build
+	make cpu-objects -C ./Build -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
 
 metal: gpunb.metallib gpunb.metal.o gpupot.metallib gpupot.metal.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.cpu.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | Build $(RUNDIR)
 	cp -f gpunb.metal.o gpunb.o
