@@ -50,6 +50,12 @@
      &                                           '  Z =',F7.4)
       END IF
 *
+*       Particle-generation block (fort.10 read / IMF / SETUP / mass
+*       rescaling). Skipped under AMUSE because BODY/X/XDOT have already
+*       been staged via the new_particle interface; we just need to
+*       compute ZMASS from the supplied BODY array.
+      IF (amusein.EQ.0) THEN
+*
 *       Check options for reading initial conditions from input file.
       IF (KZ(22).GE.2.OR.KZ(22).EQ.-1) THEN
           ZMASS = 0.0
@@ -116,6 +122,15 @@
 *       Set up initial coordinates & velocities (uniform or Plummer model).
    40 IF (KZ(22).EQ.0.OR.KZ(22).EQ.1) THEN
           CALL SETUP
+      END IF
+*
+      ELSE
+*       AMUSE branch: particles are already in BODY/X/XDOT from the
+*       new_particle interface. Just compute ZMASS.
+          ZMASS = 0.0D0
+          DO 6 I = 1, N
+              ZMASS = ZMASS + BODY(I)
+    6     CONTINUE
       END IF
 *
    50 RETURN

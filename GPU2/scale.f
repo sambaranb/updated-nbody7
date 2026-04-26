@@ -20,9 +20,18 @@
       Kmps = 1.0D+05
 *
 *       Read virial ratio, rotation scaling factors, tidal radius & SMAX
-*       (skipped under AMUSE; interface setters supply these values).
+*       (skipped under AMUSE; defaults supplied below).
       IF (amusein.EQ.0) THEN
           READ (5,*)  Q, VXROT, VZROT, RTIDE, SMAX
+      ELSE
+*         Sensible AMUSE defaults: cold-virial cluster, no rotation,
+*         no tidal radius (isolated), standard block-step ceiling.
+*         A future revision can promote these to setters via amuse.h.
+          Q = 0.5d0
+          VXROT = 0.0d0
+          VZROT = 0.0d0
+          RTIDE = 0.0d0
+          SMAX = 1.0d0
       END IF
 *       Note RTIDE should be non-zero for isolated systems (cf. CALL LAGR).
       RSPH2 = RTIDE
