@@ -16,11 +16,22 @@
 *         RS0_AMUSE      : forwarded to RS0    (initial neighbour radius)
 *         TCRITp         : restart TCRIT extension (compat. slot)
 *
+*         CLIGHT_AMUSE   : speed of light in N-body units; copied to
+*                          CLIGHT (Block/ksint.f, /STARS/ COMMON via
+*                          common6.h) and to Clight (ARchain/chain.f,
+*                          /softening/ COMMON via ARCCOM2e2.ch) when
+*                          KSINT or CHAIN first runs under AMUSE.
+*         NBH_AMUSE      : ARCHAIN black-hole flag, copied to chain.f
+*         IDIS_AMUSE     : ARCHAIN disruption-mode flag, copied to chain.f
+*                          (0 = pure-BH treatment; >0 = star-BH disruption)
+*
 *       Explicitly typed because common6.h uses IMPLICIT REAL*8 (A-H,O-Z)
 *       which would otherwise make `amusein` REAL.
 *
       INTEGER  amusein, KSTART_AMUSE, NRAND_AMUSE, isernb, iserreg
-      REAL*8   TCOMP_AMUSE, RS0_AMUSE, TCRITp
+      INTEGER  NBH_AMUSE, IDIS_AMUSE
+      REAL*8   TCOMP_AMUSE, RS0_AMUSE, TCRITp, CLIGHT_AMUSE
       COMMON /AMUSEBLK/ amusein, KSTART_AMUSE, NRAND_AMUSE,
      &                  isernb, iserreg,
-     &                  TCOMP_AMUSE, RS0_AMUSE, TCRITp
+     &                  NBH_AMUSE, IDIS_AMUSE,
+     &                  TCOMP_AMUSE, RS0_AMUSE, TCRITp, CLIGHT_AMUSE

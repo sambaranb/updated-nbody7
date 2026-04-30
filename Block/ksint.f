@@ -5,6 +5,7 @@
 *       ------------------------
 *
       INCLUDE 'common6.h'
+      INCLUDE 'amuse.h'
       COMMON/BINARY/  CM(4,MMAX),XREL(3,MMAX),VREL(3,MMAX),
      &                HM(MMAX),UM(4,MMAX),UMDOT(4,MMAX),TMDIS(MMAX),
      &                NAMEM(MMAX),NAMEG(MMAX),KSTARM(MMAX),IFLAGM(MMAX)
@@ -34,7 +35,15 @@
 *       Initialize NEW CHAIN delay time after start/restart.
       IF (IT.EQ.0) THEN
           TIME_CH = TTOT
-          READ (5,*) CLIGHT
+*         Under AMUSE the speed of light is supplied via /AMUSEBLK/
+*         (see Ncode/amuse.h, default 20000 N-body units in
+*         interface.f90:initialize_code, settable via set_archain_params).
+*         Standalone runs still read it from STDIN as before.
+          IF (amusein.EQ.0) THEN
+              READ (5,*) CLIGHT
+          ELSE
+              CLIGHT = CLIGHT_AMUSE
+          END IF
           IT = 1
           ICHAIN = .FALSE.
       END IF

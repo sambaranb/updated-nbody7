@@ -10,6 +10,7 @@
 *       ......................................
 *
         INCLUDE 'ARCCOM2e2.ch'
+        INCLUDE 'amuse.h'
         COMMON/DIAGNOSTICS/GAMMA,H,IWR
         common/justforfun/Tkin,Upot
         common/collision/icollision,IBH,JBH,iwarning
@@ -57,8 +58,18 @@
       TIMEC = 0.0
       CALL CHINIT(ISUB)
 *       Read velocity of light and disruption option (first time only).
+*       Under AMUSE these are supplied via /AMUSEBLK/ (see
+*       Ncode/amuse.h; defaults CLIGHT=20000, NBH=0, IDIS=0 in
+*       interface.f90:initialize_code, settable as a tuple via
+*       set_archain_params). Standalone runs still read STDIN as before.
       IF (IEND.EQ.0) THEN
-          READ (5,*) Clight, NBH, IDIS
+          IF (amusein.EQ.0) THEN
+              READ (5,*) Clight, NBH, IDIS
+          ELSE
+              Clight = CLIGHT_AMUSE
+              NBH    = NBH_AMUSE
+              IDIS   = IDIS_AMUSE
+          END IF
           CVEL = CLIGHT
           IEND = 1
           WRITE (6,1)  CLIGHT, TSP
