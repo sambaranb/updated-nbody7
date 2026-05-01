@@ -25,13 +25,26 @@
 *         IDIS_AMUSE     : ARCHAIN disruption-mode flag, copied to chain.f
 *                          (0 = pure-BH treatment; >0 = star-BH disruption)
 *
+*         NBIN0_AMUSE    : primordial binary count, re-injected after
+*                          ZERO (which clears NBIN0=0). See Block/data.f.
+*         NHI0_AMUSE     : primordial hierarchy count, same treatment.
+*         EPOCH0_AMUSE   : initial BSE epoch (Myr), zeroed by ZERO too.
+*         ZMET_AMUSE     : metallicity (mass fraction); not zeroed by
+*                          ZERO but stored here for symmetry with the
+*                          other DATA-line items.
+*         DTPLOT_AMUSE   : HR-diagram output interval (Myr); same.
+*
 *       Explicitly typed because common6.h uses IMPLICIT REAL*8 (A-H,O-Z)
 *       which would otherwise make `amusein` REAL.
 *
       INTEGER  amusein, KSTART_AMUSE, NRAND_AMUSE, isernb, iserreg
       INTEGER  NBH_AMUSE, IDIS_AMUSE
+      INTEGER  NBIN0_AMUSE, NHI0_AMUSE
       REAL*8   TCOMP_AMUSE, RS0_AMUSE, TCRITp, CLIGHT_AMUSE
+      REAL*8   ZMET_AMUSE, DTPLOT_AMUSE, EPOCH0_AMUSE
       COMMON /AMUSEBLK/ amusein, KSTART_AMUSE, NRAND_AMUSE,
      &                  isernb, iserreg,
      &                  NBH_AMUSE, IDIS_AMUSE,
-     &                  TCOMP_AMUSE, RS0_AMUSE, TCRITp, CLIGHT_AMUSE
+     &                  NBIN0_AMUSE, NHI0_AMUSE,
+     &                  TCOMP_AMUSE, RS0_AMUSE, TCRITp, CLIGHT_AMUSE,
+     &                  ZMET_AMUSE, DTPLOT_AMUSE, EPOCH0_AMUSE

@@ -133,6 +133,20 @@
     6     CONTINUE
       END IF
 *
+*     Re-inject the DATA-line items that ZERO clears (NBIN0, NHI0,
+*     EPOCH0) and the ones that don't survive an STDIN-less startup
+*     (ZMET, DTPLOT). Standalone NBODY7 sets these via the gated
+*     READ above; under AMUSE the values come from the /AMUSEBLK/
+*     slots that the interface populated in initialize_code (and
+*     possibly overrode via setters before commit_parameters).
+      IF (amusein.NE.0) THEN
+          NBIN0  = NBIN0_AMUSE
+          NHI0   = NHI0_AMUSE
+          EPOCH0 = EPOCH0_AMUSE
+          ZMET   = ZMET_AMUSE
+          DTPLOT = DTPLOT_AMUSE
+      END IF
+*
    50 RETURN
 *
       END
