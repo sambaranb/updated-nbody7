@@ -32,6 +32,21 @@
           READ(222,*)ceflag,tflag,ifflag,wdflag,bhflag,nsflag,mxns
           READ(222,*)psflag,kmech,ecflag,edflag
           READ(222,*)disp,beta,psii,acc2,epsnov,ftzacc,fmrg,eddfac,gamm1
+      ELSE
+*       AMUSE branch: re-inject the DATA-line items that ZERO clears
+*       (NBIN0, NHI0, EPOCH0) and the others bundled with them
+*       (ZMET, DTPLOT). This MUST happen before the ZMET <= 0 clamp
+*       and the KZ(19) >= 3 ZCNSTS call below; otherwise the spurious
+*       ZMET = 0 -> 1e-4 clamp would feed ZCNSTS the wrong metallicity
+*       and the BSE abundance / cooling constants would be wrong for
+*       any user-supplied Z. The matching /AMUSEBLK/ slots are populated
+*       by the AMUSE worker in interface.f90:initialize_code (and may
+*       be overridden via setters before commit_parameters).
+          NBIN0  = NBIN0_AMUSE
+          NHI0   = NHI0_AMUSE
+          EPOCH0 = EPOCH0_AMUSE
+          ZMET   = ZMET_AMUSE
+          DTPLOT = DTPLOT_AMUSE
       END IF
 *
       IF (N + 2*NBIN0 + 2*NHI0.GE.NMAX - 2) THEN
@@ -126,25 +141,14 @@
 *
       ELSE
 *       AMUSE branch: particles are already in BODY/X/XDOT from the
-*       new_particle interface. Just compute ZMASS.
+*       new_particle interface. Just compute ZMASS. The DATA-line
+*       items (NBIN0, NHI0, EPOCH0, ZMET, DTPLOT) have already been
+*       re-injected at the top of this routine, before the ZCNSTS
+*       call, so abundance / cooling constants are correctly set.
           ZMASS = 0.0D0
           DO 6 I = 1, N
               ZMASS = ZMASS + BODY(I)
     6     CONTINUE
-      END IF
-*
-*     Re-inject the DATA-line items that ZERO clears (NBIN0, NHI0,
-*     EPOCH0) and the ones that don't survive an STDIN-less startup
-*     (ZMET, DTPLOT). Standalone NBODY7 sets these via the gated
-*     READ above; under AMUSE the values come from the /AMUSEBLK/
-*     slots that the interface populated in initialize_code (and
-*     possibly overrode via setters before commit_parameters).
-      IF (amusein.NE.0) THEN
-          NBIN0  = NBIN0_AMUSE
-          NHI0   = NHI0_AMUSE
-          EPOCH0 = EPOCH0_AMUSE
-          ZMET   = ZMET_AMUSE
-          DTPLOT = DTPLOT_AMUSE
       END IF
 *
    50 RETURN
