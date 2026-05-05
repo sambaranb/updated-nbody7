@@ -31,7 +31,10 @@ method = { module = "version_helper", value = "get_amuse_version", module-dir = 
 skip-excluded-dirs = true
 
 [tool.hatch.build.targets.wheel]
-include = ["amuse_nbody7/**/*.py"]
+include = [
+    "amuse_nbody7/**/*.py",
+    "amuse/community/nbody7/**/*.py",
+    ]
 exclude = [
     "amuse_nbody7/packages",
     "amuse_nbody7/support",
