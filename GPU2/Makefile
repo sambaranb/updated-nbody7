@@ -26,9 +26,9 @@ else
  endif
 endif
 
-FC       = gfortran-mp-14
+FC       = gfortran
 FFLAGS   = -O3 -Wall -march=native
-CXX      = g++-mp-14
+CXX      = g++
 CXXFLAGS = -O3 -Wall -march=native
 ifeq ($(avx), enable)
 FFLAGS   += -mavx
