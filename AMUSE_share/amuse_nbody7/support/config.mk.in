@@ -25,7 +25,9 @@ FORSOCKETS_LIBS = @FORSOCKETS_LIBS@
 # External dependencies
 OPENMP_FCFLAGS = @OPENMP_FCFLAGS@
 
-# CUDA_TK = @CUDA_TK@
-# NVCC = @NVCC@
-# CUDA_FLAGS = @CUDA_FLAGS@
-# CUDA_LDFLAGS = @CUDA_LDFLAGS@
+# CUDA (populated only when nvcc + libcudart are detected; empty otherwise).
+# Required for the gpu-variant wheel; harmless to leave empty for cpu/sse/avx.
+CUDA_TK = @CUDA_TK@
+NVCC = @NVCC@
+CUDA_FLAGS = @CUDA_FLAGS@
+CUDA_LDFLAGS = @CUDA_LDFLAGS@

@@ -50,12 +50,23 @@ endif
 # assignment, while standalone invocations of this Makefile (e.g. for
 # clean / distclean from inside src/) still get a working default.
 # Keep the default below in sync with the outer Makefile when bumping.
-VERSION   ?= 9b09a1c4efe8d5cbf348cb4232fd1dac0baef095
+VERSION   ?= 18ac99bc85db4ad7eb4f620102e402076f076c54
 SRCTREE   := updated-nbody7-$(VERSION)
 GPU2DIR   := $(SRCTREE)/GPU2
-BUILDDIR  := $(GPU2DIR)/Build
 
-CODELIB   := libnbody7.a
+# VARIANT selects which upstream NBODY7 build is archived into the
+# AMUSE worker codelib:
+#   cpu          - portable scalar (default; v0)
+#   sse          - x86 SSE intrinsics
+#   avx          - x86 AVX intrinsics + AVX-mode gpuirr.s assembly
+#   gpu          - CUDA (requires nvcc + CUDA runtime)
+# Each variant emits into its own Build_$(VARIANT)/ inside GPU2/ and
+# produces libnbody7_$(VARIANT).a so multiple variants can coexist in
+# one source tree.
+VARIANT         ?= cpu
+UPSTREAM_TARGET := $(VARIANT)-objects
+BUILDDIR        := $(GPU2DIR)/Build_$(VARIANT)
+CODELIB         := libnbody7_$(VARIANT).a
 
 
 # NBODY7 build options passed down to GPU2/Makefile:
@@ -67,14 +78,13 @@ CODELIB   := libnbody7.a
 # in case a developer edits the GPU2/Makefile header values.
 NBODY_OPTS := ksblock=on chainmode=archain
 
-# Target within GPU2/Makefile:
-#   cpu          - standalone build (Stage 1 + Stage 2 + throwaway link)
-#   cpu-objects  - same as cpu but stops before the link, so AMUSE can
-#                  archive the .o files into libnbody7.a without
-#                  hitting platform-specific C++ stdlib issues.
-#   sse / gpu / metal - x86-SSE / CUDA / Apple-Metal variants.
-# v0 AMUSE worker is CPU-only and uses cpu-objects.
-UPSTREAM_TARGET := cpu-objects
+# AVX variant: the upstream gpuirr.o rule is gated on `avx=enable` (see
+# GPU2/Makefile lines 138-152). Without this flag, gpuirr.o would be
+# built from the SSE source even under the avx-objects target, defeating
+# the AVX selection.
+ifeq ($(VARIANT),avx)
+NBODY_OPTS += avx=enable
+endif
 
 
 .PHONY: all build-objects clean distclean
@@ -83,17 +93,23 @@ all: $(CODELIB)
 
 
 # -----------------------------------------------------------------------
-# Invoke the upstream two-stage build (GPU2/Makefile cpu -> Stage 1 C++ +
-# GPU2-local Fortran, then recurses into Build/ with Makefile_cpu.build
-# for Stage 2 Block/ Fortran and the link).
+# Invoke the upstream two-stage build (GPU2/Makefile $(VARIANT)-objects
+# -> Stage 1 C++ + GPU2-local Fortran, then recurses into the per-variant
+# Build_$(VARIANT)/ with Makefile_cpu.build for Stage 2 Block/ Fortran).
 #
 # FC is overridden to MPIFC so the object code is ABI-compatible with
 # the worker (which is built with MPIFC). CXX uses whatever configure
-# detected (plain g++/clang++ is fine for v0).
+# detected (plain g++/clang++ is fine for cpu/sse/avx; gpu also needs
+# NVCC and CUDA_PATH, which configure provides for the gpu variant).
+#
+# BUILD=Build_$(VARIANT) tells GPU2/Makefile to deposit Stage-1 .o files
+# and run Stage-2 inside the per-variant subdirectory, so cpu/sse/avx/gpu
+# can coexist in one source tree without colliding on Build/.
 # -----------------------------------------------------------------------
 build-objects:
 	$(MAKE) -C $(GPU2DIR) $(UPSTREAM_TARGET) \
 	    -j $(CPU_COUNT) \
+	    BUILD=Build_$(VARIANT) \
 	    FC="$(MPIFC)" \
 	    CXX="$(CXX)" \
 	    $(NBODY_OPTS)

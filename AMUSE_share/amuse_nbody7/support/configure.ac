@@ -45,7 +45,11 @@ AX_MPI()
 AC_OPENMP()
 AC_SUBST(OPENMP_FCFLAGS)
 
-# AMUSE_CUDA()
+# CUDA detection for the gpu-variant wheel (amuse-nbody7-gpu).
+# Gracefully reports "CUDA not found" on hosts without nvcc + libcudart;
+# the gpu wheel build will fail at compile time on such hosts but cpu/sse/avx
+# wheels remain unaffected. CUDA_TK env var can override autodetection.
+AMUSE_CUDA()
 
 
 ##### End remove anything not needed by the code #####

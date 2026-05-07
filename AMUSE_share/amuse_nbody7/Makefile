@@ -14,7 +14,7 @@ support/config.mk:
 # github-tarball (for public release, currently commented out). Switch by
 # uncommenting the tarball rules and removing the sync-src rule when going
 # public.
-VERSION = 9b09a1c4efe8d5cbf348cb4232fd1dac0baef095
+VERSION = 18ac99bc85db4ad7eb4f620102e402076f076c54
 
 # --- Local-rsync mode (private development) ---------------------------------
 # Sync from the developer's working tree on every build so local edits on the
@@ -50,14 +50,15 @@ src/updated-nbody7-$(VERSION): nbody7.tar.gz
 
 # Building the code into a static library
 #
-# v0 scope: CPU-only NBODY7 behind an MPI-IPC AMUSE worker. Only the flags
-# actually emitted by support/config.mk are listed. CUDA is left as a
-# commented placeholder for a planned CUDA-variant worker. The other flags
-# referenced by the AMUSE Makefile template (HDF5, GSL, BLAS/LAPACK,
-# SAPPORO_LIGHT, G6LIB, SIMPLE_HASH, STOPCONDMPI, AMUSE_MPI, NETCDF4, MPFR,
-# GMP, FFTW, OPENMP_CFLAGS/CXXFLAGS) are not used by NBODY7 and have been
-# removed as dead references. Re-add them here (and in support/configure.ac)
-# if a future variant needs them.
+# v1 scope: NBODY7 behind an MPI-IPC AMUSE worker, with cpu/sse/avx/gpu
+# variants built side-by-side as separate per-variant wheels. The flags
+# below are variant-agnostic and apply to interface.f90 / nbody7_worker.f90
+# compilation; per-variant differences (CUDA libs for gpu, SIMD compiler
+# flags for sse/avx) are scoped via target-specific variables on the
+# worker rules below. The other flags referenced by the AMUSE Makefile
+# template (HDF5, GSL, BLAS/LAPACK, SAPPORO_LIGHT, G6LIB, SIMPLE_HASH,
+# STOPCONDMPI, AMUSE_MPI, NETCDF4, MPFR, GMP, FFTW, OPENMP_CFLAGS/CXXFLAGS)
+# are not used by NBODY7 and have been removed as dead references.
 
 DEPFLAGS += $(STOPCOND_CFLAGS)
 DEPFLAGS += $(FORSOCKETS_CFLAGS)
@@ -68,25 +69,18 @@ DEPFLAGS += $(OPENMP_FCFLAGS)
 # bare `include 'common6.h'` / `include 'amuse.h'`, resolved via this -I.
 DEPFLAGS += -Isrc/updated-nbody7-$(VERSION)/Block
 
-# CUDA (for a future nbody7_cuda_worker variant): also uncomment
-# AMUSE_CUDA() in support/configure.ac so NVCC, CUDA_FLAGS, CUDA_LDFLAGS get
-# emitted into config.mk.
-#DEPFLAGS += $(CUDA_FLAGS)
-
 CFLAGS  += $(DEPFLAGS)
 FCFLAGS += $(DEPFLAGS)
-
-#LDFLAGS += $(CUDA_LDFLAGS)
 
 LDLIBS += -lm $(STOPCOND_LIBS)
 LDLIBS += $(FORSOCKETS_LIBS)
 
-# libnbody7.a contains C++ object files (gpunb.cpp, gpupot.cpp,
-# cnbint6.cpp, cxvpred.cpp, wtime.cpp, gpuirr.cpp) and OpenMP-annotated
-# Fortran (intgrt.omp.f). The Fortran-driven worker link therefore
-# needs the C++ standard library and the OpenMP runtime explicitly.
-# -lc++ is the clang/libc++ name on macOS (Apple and conda-clang).
-# -lstdc++ is the GCC/libstdc++ name on Linux (Ubuntu, Debian, Fedora, etc.).
+# Each libnbody7_<variant>.a contains C++ object files (gpunb*.cpp,
+# gpupot*.cpp, cnbint*.cpp, cxvpred.cpp, wtime.cpp, gpuirr*.cpp) and
+# OpenMP-annotated Fortran (intgrt.omp.f). The Fortran-driven worker
+# link therefore needs the C++ standard library and the OpenMP runtime
+# explicitly. -lc++ is the clang/libc++ name on macOS (Apple and
+# conda-clang). -lstdc++ is the GCC/libstdc++ name on Linux.
 ifeq ($(shell uname -s),Darwin)
 LDLIBS += -lc++
 else
@@ -95,16 +89,23 @@ endif
 LDLIBS += -fopenmp
 
 
-CODELIB = src/libnbody7.a
+# Per-variant static libraries built by src/Makefile. Each worker links
+# against exactly one of these. .PHONY so that the inner make is always
+# re-entered (it owns its own dependency tracking against the upstream
+# tree, and the wildcard archive recipe must re-evaluate each time).
+.PHONY: src/libnbody7_cpu.a src/libnbody7_sse.a src/libnbody7_avx.a src/libnbody7_gpu.a
 
-
-##### Modify build command as needed #####
-.PHONY: $(CODELIB)
-$(CODELIB): | src/updated-nbody7-$(VERSION)
-	$(MAKE) -C src -j $(CPU_COUNT) VERSION=$(VERSION) all
+src/libnbody7_%.a: | src/updated-nbody7-$(VERSION)
+	$(MAKE) -C src -j $(CPU_COUNT) VERSION=$(VERSION) VARIANT=$*
 
 
 # Building the workers
+#
+# nbody7_worker.f90 and interface.f90 are variant-agnostic: the same
+# Fortran glue and the same Nbody7Interface class signatures work for
+# every variant. The variant difference is purely which compiled NBODY7
+# routines (cpu/sse/avx/gpu) the worker contains, set at link time by
+# linking against a different libnbody7_<variant>.a.
 nbody7_worker.f90: interface.py
 	amusifier --type=f90 interface.py Nbody7Interface -o $@
 
@@ -117,7 +118,22 @@ nbody7_worker.o: nbody7_worker.f90
 interface.o: interface.f90 | src/updated-nbody7-$(VERSION)
 	$(MPIFC) -ffixed-form -ffixed-line-length-none -o $@ -c $(FCFLAGS) $<
 
-nbody7_worker: interface.o nbody7_worker.o $(CODELIB)
+# Per-variant linked workers. Each spawns a separate Python-level
+# selection via Nbody7Interface(mode=MODE_<variant>) which dispatches
+# name_of_the_worker to the matching binary at runtime.
+nbody7_worker:     interface.o nbody7_worker.o src/libnbody7_cpu.a
+	$(MPIFC) -o $@ $(LDFLAGS) $^ $(LDLIBS)
+
+nbody7_sse_worker: interface.o nbody7_worker.o src/libnbody7_sse.a
+	$(MPIFC) -o $@ $(LDFLAGS) $^ $(LDLIBS)
+
+nbody7_avx_worker: interface.o nbody7_worker.o src/libnbody7_avx.a
+	$(MPIFC) -o $@ $(LDFLAGS) $^ $(LDLIBS)
+
+# GPU worker additionally needs the CUDA runtime; CUDA_LDFLAGS is emitted
+# by support/configure.ac when AMUSE_CUDA() is active.
+nbody7_gpu_worker: LDLIBS += $(CUDA_LDFLAGS)
+nbody7_gpu_worker: interface.o nbody7_worker.o src/libnbody7_gpu.a
 	$(MPIFC) -o $@ $(LDFLAGS) $^ $(LDLIBS)
 
 
@@ -126,10 +142,10 @@ nbody7_worker: interface.o nbody7_worker.o $(CODELIB)
 
 
 # Which packages contain which workers?
-##### Add and/or remove as needed #####
-amuse-nbody7_contains: nbody7_worker
-
-amuse-nbody7-SUFFIX_contains: nbody7_SUFFIX_worker
+amuse-nbody7_contains:     nbody7_worker
+amuse-nbody7-sse_contains: nbody7_sse_worker
+amuse-nbody7-avx_contains: nbody7_avx_worker
+amuse-nbody7-gpu_contains: nbody7_gpu_worker
 
 
 # Building and installing packages
