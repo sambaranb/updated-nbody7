@@ -52,70 +52,100 @@ NVCC += -DWITH_MAX_THREADS
 
 RUNDIR = ./run_versions
 
+# BUILD can be overridden so per-variant invocations emit into separate
+# directories (Build_cpu, Build_sse, Build_avx, Build_gpu). Used by the
+# AMUSE worker build to archive multiple variants from the same source
+# tree without object-file collisions.
+BUILD = Build
+
 ifeq ($(avx), enable)
 all: gpu avx
 else
 all: gpu sse
 endif
 
-Build:
-	mkdir -p Build
+$(BUILD):
+	mkdir -p $(BUILD)
 
 $(RUNDIR):
 	mkdir -p $(RUNDIR)
 
-gpu: gpunb.gpu.o gpupot.gpu.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | Build $(RUNDIR)
+gpu: gpunb.gpu.o gpupot.gpu.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | $(BUILD) $(RUNDIR)
 	cp -f gpunb.gpu.o gpunb.o
 	cp -f gpupot.gpu.o gpupot.o
-	cp -f *.o ./Build
-	make gpu -C ./Build -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC) CUDA_PATH=$(CUDA_PATH)
-	mv -f ./Build/nbody6 $(RUNDIR)/$(BINNAME).gpu
+	cp -f *.o ./$(BUILD)
+	make gpu -C ./$(BUILD) -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC) CUDA_PATH=$(CUDA_PATH)
+	mv -f ./$(BUILD)/nbody6 $(RUNDIR)/$(BINNAME).gpu
 
-avx: gpunb.avx.o gpupot.avx.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | Build $(RUNDIR)
+avx: gpunb.avx.o gpupot.avx.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | $(BUILD) $(RUNDIR)
 	cp -f gpunb.avx.o gpunb.o
 	cp -f gpupot.avx.o gpupot.o
-	cp -f *.o ./Build
-	make sse -C ./Build -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
-	mv -f ./Build/nbody6 $(RUNDIR)/$(BINNAME).avx
+	cp -f *.o ./$(BUILD)
+	make sse -C ./$(BUILD) -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
+	mv -f ./$(BUILD)/nbody6 $(RUNDIR)/$(BINNAME).avx
 
-sse: gpunb.sse.o gpupot.sse.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | Build $(RUNDIR)
+sse: gpunb.sse.o gpupot.sse.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | $(BUILD) $(RUNDIR)
 	cp -f gpunb.sse.o gpunb.o
 	cp -f gpupot.sse.o gpupot.o
-	cp -f *.o ./Build
-	make sse -C ./Build -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
-	mv -f ./Build/nbody6 $(RUNDIR)/$(BINNAME).sse
+	cp -f *.o ./$(BUILD)
+	make sse -C ./$(BUILD) -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
+	mv -f ./$(BUILD)/nbody6 $(RUNDIR)/$(BINNAME).sse
 
-cpu: gpunb.cpu.o gpupot.cpu.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.cpu.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | Build $(RUNDIR)
+cpu: gpunb.cpu.o gpupot.cpu.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.cpu.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | $(BUILD) $(RUNDIR)
 	cp -f gpunb.cpu.o gpunb.o
 	cp -f gpupot.cpu.o gpupot.o
 	cp -p cnbint6.o cnbint.o
 	cp -p gpuirr.cpu.o gpuirr.o
-	cp -f *.o ./Build
-	make cpu -C ./Build -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
-	mv -f ./Build/nbody6 $(RUNDIR)/$(BINNAME).cpu
+	cp -f *.o ./$(BUILD)
+	make cpu -C ./$(BUILD) -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
+	mv -f ./$(BUILD)/nbody6 $(RUNDIR)/$(BINNAME).cpu
 
 # Same Stage-1 + Stage-2 object compilation as `cpu`, but stops before
 # the throwaway link of `nbody6`. Used by the AMUSE-nbody7 worker build
 # which archives the resulting Build/*.o into libnbody7.a and supplies
 # its own main. Keeps the AMUSE path independent of platform-specific
 # C++ stdlib / system-SDK linker quirks (e.g. -lstdc++ vs -lc++).
-cpu-objects: gpunb.cpu.o gpupot.cpu.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.cpu.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | Build
+cpu-objects: gpunb.cpu.o gpupot.cpu.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.cpu.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | $(BUILD)
 	cp -f gpunb.cpu.o gpunb.o
 	cp -f gpupot.cpu.o gpupot.o
 	cp -p cnbint6.o cnbint.o
 	cp -p gpuirr.cpu.o gpuirr.o
-	cp -f *.o ./Build
-	make cpu-objects -C ./Build -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
+	cp -f *.o ./$(BUILD)
+	make cpu-objects -C ./$(BUILD) -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
 
-metal: gpunb.metallib gpunb.metal.o gpupot.metallib gpupot.metal.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.cpu.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | Build $(RUNDIR)
+# Same Stage-1 + Stage-2 object compilation as `sse`/`avx`/`gpu`, but
+# stops before the throwaway link of `nbody6`. Used by the AMUSE-nbody7
+# variant worker builds (amuse-nbody7-sse / -avx / -gpu) which archive
+# the resulting Build_<variant>/*.o into libnbody7_<variant>.a and
+# supply their own main via interface.f90. Stage-2 reuses the existing
+# cpu-objects target (variant-agnostic: same OBJECTS list, no link).
+sse-objects: gpunb.sse.o gpupot.sse.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | $(BUILD)
+	cp -f gpunb.sse.o gpunb.o
+	cp -f gpupot.sse.o gpupot.o
+	cp -f *.o ./$(BUILD)
+	make cpu-objects -C ./$(BUILD) -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
+
+avx-objects: gpunb.avx.o gpupot.avx.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | $(BUILD)
+	cp -f gpunb.avx.o gpunb.o
+	cp -f gpupot.avx.o gpupot.o
+	cp -f *.o ./$(BUILD)
+	make cpu-objects -C ./$(BUILD) -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
+
+gpu-objects: gpunb.gpu.o gpupot.gpu.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | $(BUILD)
+	cp -f gpunb.gpu.o gpunb.o
+	cp -f gpupot.gpu.o gpupot.o
+	cp -f *.o ./$(BUILD)
+	make cpu-objects -C ./$(BUILD) -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC) CUDA_PATH=$(CUDA_PATH)
+
+metal: gpunb.metallib gpunb.metal.o gpupot.metallib gpupot.metal.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.cpu.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | $(BUILD) $(RUNDIR)
 	cp -f gpunb.metal.o gpunb.o
 	cp -f gpupot.metal.o gpupot.o
 	cp -p cnbint6.o cnbint.o
 	cp -p gpuirr.cpu.o gpuirr.o
-	cp -f *.o ./Build
-	cp -f *.metallib ./Build
-	make metal -C ./Build -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
-	mv -f ./Build/nbody6 $(RUNDIR)/$(BINNAME).metal
+	cp -f *.o ./$(BUILD)
+	cp -f *.metallib ./$(BUILD)
+	make metal -C ./$(BUILD) -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
+	mv -f ./$(BUILD)/nbody6 $(RUNDIR)/$(BINNAME).metal
 
 cnbint.o: ./lib/cnbint.cpp
 	$(CXX) $(CXXFLAGS) -c $^
@@ -205,5 +235,5 @@ gpunb.metal.o: lib/gpunb.metal.mm
 	$(OBJCXX) -O3 -Wall -fobjc-arc -c $^ -o $@
 
 clean:
-	rm -f *.o *.s *.air *.metallib ./Build/*.o
+	rm -f *.o *.s *.air *.metallib ./$(BUILD)/*.o
 
