@@ -93,10 +93,30 @@ LDLIBS += -fopenmp
 # against exactly one of these. .PHONY so that the inner make is always
 # re-entered (it owns its own dependency tracking against the upstream
 # tree, and the wildcard archive recipe must re-evaluate each time).
+#
+# These are explicit rules rather than a single src/libnbody7_%.a:
+# pattern rule because GNU Make disables pattern-rule matching for any
+# target declared .PHONY. Using a pattern rule with .PHONY would silently
+# skip the codelib build and leave the worker link to fail on a missing
+# archive.
 .PHONY: src/libnbody7_cpu.a src/libnbody7_sse.a src/libnbody7_avx.a src/libnbody7_gpu.a
 
-src/libnbody7_%.a: | src/updated-nbody7-$(VERSION)
-	$(MAKE) -C src -j $(CPU_COUNT) VERSION=$(VERSION) VARIANT=$*
+# The explicit `all` goal is required: src/Makefile (and ../support/config.mk
+# below it) only includes config.mk when MAKECMDGOALS contains something
+# other than clean/distclean. Omitting `all` leaves MAKECMDGOALS empty in
+# the sub-make, which silently skips the include and produces empty
+# MPIFC / FC / CXX / AR / RANLIB and a broken upstream invocation.
+src/libnbody7_cpu.a: | src/updated-nbody7-$(VERSION)
+	$(MAKE) -C src -j $(CPU_COUNT) VERSION=$(VERSION) VARIANT=cpu all
+
+src/libnbody7_sse.a: | src/updated-nbody7-$(VERSION)
+	$(MAKE) -C src -j $(CPU_COUNT) VERSION=$(VERSION) VARIANT=sse all
+
+src/libnbody7_avx.a: | src/updated-nbody7-$(VERSION)
+	$(MAKE) -C src -j $(CPU_COUNT) VERSION=$(VERSION) VARIANT=avx all
+
+src/libnbody7_gpu.a: | src/updated-nbody7-$(VERSION)
+	$(MAKE) -C src -j $(CPU_COUNT) VERSION=$(VERSION) VARIANT=gpu all
 
 
 # Building the workers
