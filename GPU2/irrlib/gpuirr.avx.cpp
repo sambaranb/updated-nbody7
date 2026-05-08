@@ -314,7 +314,11 @@ struct Force{
 };
 
 struct NBlist{
-	enum{ NB_MAX = 512 + 88 };
+	// Matches gpuirr.sse.cpp / gpuirr.cpp (699 max neighbours + headroom).
+	// AVX requires NB_MAX divisible by 8 because pbuf below is sized
+	// NB_MAX/8 (Pred8 packs 8 neighbours per slot); 699 + 133 = 832 is
+	// the smallest value that satisfies both.
+	enum{ NB_MAX = 699 + 133 };
 	int pad[3];
 	int nnb;
 	int nb[NB_MAX];
@@ -402,7 +406,7 @@ static void gpuirr_close(){
 	const double nnb_avr = double(num_inter) / double(num_steps);
 
 	fprintf(stderr, "**************************** \n"); 
-	fprintf(stderr, "Closing GPUIRR lib. CPU ver. \n"); 
+	fprintf(stderr, "Closing GPUIRR lib. AVX ver. \n");
 	fprintf(stderr, "time grav  : %f sec\n", time_grav);
 	fprintf(stderr, "\n");
 	fprintf(stderr, "perf grav  : %f Gflops\n", Gflops);

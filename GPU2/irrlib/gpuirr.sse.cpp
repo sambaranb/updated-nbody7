@@ -384,7 +384,7 @@ static void gpuirr_close(){
 	const double time_tot = time_pred + time_pact +  time_grav + time_onep + time_push + time_sort;
 
 	fprintf(stderr, "**************************** \n"); 
-	fprintf(stderr, "Closing GPUIRR lib. CPU ver. \n"); 
+	fprintf(stderr, "Closing GPUIRR lib. SSE ver. \n");
 	fprintf(stderr, "time pred  : %f sec\n", time_pred);
 	fprintf(stderr, "time pact  : %f sec\n", time_pact);
 	fprintf(stderr, "time grav  : %f sec\n", time_grav);
