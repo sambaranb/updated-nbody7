@@ -105,8 +105,18 @@ all: $(CODELIB)
 # BUILD=Build_$(VARIANT) tells GPU2/Makefile to deposit Stage-1 .o files
 # and run Stage-2 inside the per-variant subdirectory, so cpu/sse/avx/gpu
 # can coexist in one source tree without colliding on Build/.
+#
+# Stage-1 contamination guard: GPU2/Makefile builds Stage-1 .o files in
+# the GPU2/ working directory itself, and its `cp -f *.o ./$(BUILD)/'
+# recipe sweeps every .o sitting there into Build_$(VARIANT)/. If a
+# previous variant left objects behind (e.g. gpunb.cpu.o, gpuirr.cpu.o
+# from an earlier `make install-amuse-nbody7-cpu'), they ride along.
+# Wipe those stage-1 leftovers before invoking the upstream make so each
+# variant starts from a clean GPU2/ working directory. The per-variant
+# Build_$(VARIANT)/ subdirectory is preserved (Stage-2 owns it).
 # -----------------------------------------------------------------------
 build-objects:
+	rm -f $(GPU2DIR)/*.o $(GPU2DIR)/*.s
 	$(MAKE) -C $(GPU2DIR) $(UPSTREAM_TARGET) \
 	    -j $(CPU_COUNT) \
 	    BUILD=Build_$(VARIANT) \
@@ -120,14 +130,36 @@ build-objects:
 #
 # The $(wildcard ...) expands when this recipe runs (after
 # build-objects has populated $(BUILDDIR) via Stage 1 copy + Stage 2
-# compilation), so it captures every .o that was produced. We strip
-# nbody6_main.o to keep the standalone PROGRAM out of a library that
-# will be linked against a worker main.
+# compilation), so it captures every .o that was produced.
+#
+# Filtering rules:
+#
+#   * nbody6_main.o is the standalone PROGRAM and must not appear in a
+#     library linked against a worker main.
+#
+#   * Variant-tagged duplicates (gpunb.<v>.o, gpupot.<v>.o, gpuirr.cpu.o,
+#     cnbint6.o) export the SAME Fortran-callable symbols as the bare
+#     canonical names (gpunb.o, gpupot.o, gpuirr.o, cnbint.o) that the
+#     upstream recipes copy into place. If both end up in the archive,
+#     the linker pulls in whichever appears first alphabetically -- and
+#     `gpunb.cpu.o' < `gpunb.o' (lex order on `.cpu' vs `.o'), so the cpu
+#     stub silently wins regardless of variant. Same for gpuirr.cpu.o
+#     vs gpuirr.o, which is how an `avx'-built archive ended up calling
+#     the CPU gpuirr_open_ at runtime ("Opening GPUIRR lib. CPU ver."
+#     in an AVX worker). Strip every variant-tagged object so only the
+#     canonical-named copy that matches $(VARIANT) survives.
 # -----------------------------------------------------------------------
+EXCLUDED_OBJS := \
+    %/nbody6_main.o \
+    %/gpunb.cpu.o %/gpunb.sse.o %/gpunb.avx.o %/gpunb.gpu.o %/gpunb.metal.o \
+    %/gpupot.cpu.o %/gpupot.sse.o %/gpupot.avx.o %/gpupot.gpu.o %/gpupot.metal.o \
+    %/gpuirr.cpu.o \
+    %/cnbint6.o
+
 $(CODELIB): build-objects
 	rm -f $@
 	$(AR) -ruv $@ \
-	    $(filter-out %/nbody6_main.o, $(wildcard $(BUILDDIR)/*.o))
+	    $(filter-out $(EXCLUDED_OBJS), $(wildcard $(BUILDDIR)/*.o))
 	$(RANLIB) $@
 
 
