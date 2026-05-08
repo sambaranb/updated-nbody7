@@ -14,7 +14,7 @@ support/config.mk:
 # github-tarball (for public release, currently commented out). Switch by
 # uncommenting the tarball rules and removing the sync-src rule when going
 # public.
-VERSION = 18ac99bc85db4ad7eb4f620102e402076f076c54
+VERSION = f95e1e591cda24c035828d4839784858449b2992
 
 # --- Local-rsync mode (private development) ---------------------------------
 # Sync from the developer's working tree on every build so local edits on the
