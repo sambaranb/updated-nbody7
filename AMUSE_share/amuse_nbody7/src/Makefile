@@ -50,7 +50,7 @@ endif
 # assignment, while standalone invocations of this Makefile (e.g. for
 # clean / distclean from inside src/) still get a working default.
 # Keep the default below in sync with the outer Makefile when bumping.
-VERSION   ?= f95e1e591cda24c035828d4839784858449b2992
+VERSION   ?= fb9214bb78d39d69f08b0717f299074d0c365f9a
 SRCTREE   := updated-nbody7-$(VERSION)
 GPU2DIR   := $(SRCTREE)/GPU2
 
