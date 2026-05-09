@@ -35,13 +35,43 @@ FFLAGS   += -mavx
 CXXFLAGS += -mavx
 endif
 
-CUDA_PATH = /usr/local/cuda
-#SDK_PATH  = /usr/local/cuda_sdk
-SDK_PATH  = /usr/local/cuda-samples
+# CUDA toolkit location.
+# Default order:
+#   1. CUDA_PATH=... on the make command line (or env)        -- highest priority
+#   2. $(CONDA_PREFIX)  (set by `conda activate <env>`; e.g. Amuse-env-gpu)
+#   3. /usr/local/cuda  (typical system install)
+# AMUSE worker builds pass CUDA_PATH=$(CUDA_TK) explicitly via src/Makefile,
+# where CUDA_TK is detected by support/configure (AMUSE_CUDA macro).
+ifeq ($(origin CUDA_PATH), undefined)
+ifneq ($(CONDA_PREFIX),)
+CUDA_PATH := $(CONDA_PREFIX)
+else
+CUDA_PATH := /usr/local/cuda
+endif
+endif
 
-NVCC = nvcc
-NVCC += -arch=sm_86 -Xptxas -v
+# SDK_PATH is currently unused by lib/*.cu (cuda_pointer.h lives in
+# GPU2/lib/, the cutil.h reference is commented out). Set this only if
+# you have a cuda-samples checkout providing helpers like helper_cuda.h;
+# the -I line below is added only when SDK_PATH is non-empty.
+#SDK_PATH = /usr/local/cuda-samples
+
+# Compute capability auto-detection (first attached GPU). nvidia-smi
+# returns "8.6" etc.; strip the dot to feed -arch=sm_86. Falls back to
+# 86 (Ampere/A40) when nvidia-smi is unavailable or the flag is too old.
+# Override with NVCC_ARCH=80 (etc.) on the make command line.
+ifeq ($(origin NVCC_ARCH), undefined)
+NVCC_ARCH := $(shell nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1 | tr -d '. ')
+endif
+ifeq ($(NVCC_ARCH),)
+NVCC_ARCH := 86
+endif
+
+NVCC = $(CUDA_PATH)/bin/nvcc
+NVCC += -arch=sm_$(NVCC_ARCH) -Xptxas -v
+ifneq ($(SDK_PATH),)
 NVCC += -I $(SDK_PATH)/Common
+endif
 ifeq ($(avx), enable)
 NVCC += -Xcompiler "-O3 -Wall -fopenmp -mavx"
 else
