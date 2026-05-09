@@ -86,6 +86,18 @@ ifeq ($(VARIANT),avx)
 NBODY_OPTS += avx=enable
 endif
 
+# GPU variant: forward AMUSE-configure's detected CUDA toolkit path
+# (CUDA_TK, populated by AMUSE_CUDA() in support/configure.ac) into
+# GPU2/Makefile as CUDA_PATH so nvcc, cuda_runtime headers, and libcudart
+# are all sourced from the same toolkit AMUSE detected. Without this,
+# GPU2/Makefile falls back to its own $(CONDA_PREFIX)-or-/usr/local/cuda
+# default, which can disagree with what the AMUSE worker links against.
+ifeq ($(VARIANT),gpu)
+ifneq ($(CUDA_TK),)
+NBODY_OPTS += CUDA_PATH=$(CUDA_TK)
+endif
+endif
+
 
 .PHONY: all build-objects clean distclean
 
