@@ -362,6 +362,12 @@ class Nbody7EvolutionTests(TestWithMPI):
         instance.parameters.DELTAT = 0.5
         instance.parameters.DTADJ  = 0.5
         instance.parameters.TCRIT  = 1.0e3
+        # Match QE to the Python rel_err bar so a marginal per-ADJUST DE
+        # produces a clean AssertionError instead of NBODY7's internal
+        # "CALCULATIONS HALTED" STOP (which kills the worker process and
+        # leaves pytest with no PASS/FAIL verdict). Default QE is 2e-5
+        # which is tighter than the 1e-2 assert here.
+        instance.parameters.QE     = 1.0e-2
         instance.commit_parameters()
 
         instance.particles.add_particles(cluster)
@@ -429,6 +435,10 @@ class Nbody7EvolutionTests(TestWithMPI):
         instance.parameters.DTADJ  = 0.5
         instance.parameters.DELTAT = 0.5
         instance.parameters.TCRIT  = 1.0e3
+        # See note in test_evolve_short_plummer: align QE with the
+        # Python assert bar so marginal energy excursions become
+        # AssertionError rather than a worker-side STOP.
+        instance.parameters.QE     = 1.0e-2
         instance.commit_parameters()
         instance.particles.add_particles(cluster)
         instance.commit_particles()
