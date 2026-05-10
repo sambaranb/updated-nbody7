@@ -50,11 +50,15 @@ CUDA_PATH := /usr/local/cuda
 endif
 endif
 
-# SDK_PATH is currently unused by lib/*.cu (cuda_pointer.h lives in
-# GPU2/lib/, the cutil.h reference is commented out). Set this only if
-# you have a cuda-samples checkout providing helpers like helper_cuda.h;
-# the -I line below is added only when SDK_PATH is non-empty.
-#SDK_PATH = /usr/local/cuda-samples
+# SDK_PATH points at an NVIDIA cuda-samples checkout (public repo:
+# https://github.com/NVIDIA/cuda-samples). Required when the .cu files
+# are compiled with -DWITH_CUDA5 (our default), because lib/gpunb.velocity.cu
+# and lib/gpupot.gpu.cu then `#include <helper_cuda.h>` from cuda-samples'
+# Common/ directory. The conda CUDA toolkit and /usr/local/cuda do NOT
+# ship these samples -- clone the repo separately and set SDK_PATH.
+# The -I line below is added only when SDK_PATH is non-empty, so cpu/sse/avx
+# builds remain unaffected.
+#SDK_PATH = /path/to/cuda-samples
 
 # Compute capability auto-detection (first attached GPU). nvidia-smi
 # returns "8.6" etc.; strip the dot to feed -arch=sm_86. Falls back to

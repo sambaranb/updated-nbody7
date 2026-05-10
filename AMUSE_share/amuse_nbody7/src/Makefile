@@ -92,9 +92,21 @@ endif
 # are all sourced from the same toolkit AMUSE detected. Without this,
 # GPU2/Makefile falls back to its own $(CONDA_PREFIX)-or-/usr/local/cuda
 # default, which can disagree with what the AMUSE worker links against.
+#
+# SDK_PATH points at an NVIDIA cuda-samples checkout (public repo:
+# https://github.com/NVIDIA/cuda-samples). With -DWITH_CUDA5 set (which
+# GPU2/Makefile always passes), lib/gpunb.velocity.cu and lib/gpupot.gpu.cu
+# `#include <helper_cuda.h>` from cuda-samples' Common/. The conda CUDA
+# toolkit does NOT ship those samples -- clone the repo and pass
+# SDK_PATH=/path/to/cuda-samples on the outer make command line (or
+# export it in the environment). Forwarded only when non-empty so cpu/
+# sse/avx builds remain unaffected.
 ifeq ($(VARIANT),gpu)
 ifneq ($(CUDA_TK),)
 NBODY_OPTS += CUDA_PATH=$(CUDA_TK)
+endif
+ifneq ($(SDK_PATH),)
+NBODY_OPTS += SDK_PATH=$(SDK_PATH)
 endif
 endif
 

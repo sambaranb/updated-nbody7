@@ -150,9 +150,16 @@ nbody7_sse_worker: interface.o nbody7_worker.o src/libnbody7_sse.a
 nbody7_avx_worker: interface.o nbody7_worker.o src/libnbody7_avx.a
 	$(MPIFC) -o $@ $(LDFLAGS) $^ $(LDLIBS)
 
-# GPU worker additionally needs the CUDA runtime; CUDA_LDFLAGS is emitted
-# by support/configure.ac when AMUSE_CUDA() is active.
-nbody7_gpu_worker: LDLIBS += $(CUDA_LDFLAGS)
+# GPU worker additionally needs the CUDA runtime. AMUSE's AMUSE_CUDA m4
+# macro is unreliable here: on at least one host it detected nvcc and set
+# CUDA_TK / NVCC correctly but left CUDA_FLAGS and CUDA_LDFLAGS empty, so
+# relying on $(CUDA_LDFLAGS) alone produces a link missing -lcudart and a
+# wall of `undefined reference to cudaMalloc/cudaFree/...' errors. Add
+# the libdir(s) and -lcudart explicitly so the link works whether or not
+# CUDA_LDFLAGS got populated. Both /lib and /lib64 are passed because the
+# conda CUDA toolkit layout has only lib/, while system installs use
+# lib64/; ld silently skips nonexistent search dirs.
+nbody7_gpu_worker: LDLIBS += $(CUDA_LDFLAGS) -L$(CUDA_TK)/lib -L$(CUDA_TK)/lib64 -lcudart
 nbody7_gpu_worker: interface.o nbody7_worker.o src/libnbody7_gpu.a
 	$(MPIFC) -o $@ $(LDFLAGS) $^ $(LDLIBS)
 
