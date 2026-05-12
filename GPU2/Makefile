@@ -82,7 +82,17 @@ else
 NVCC += -Xcompiler "-O3 -Wall -fopenmp"
 endif
 NVCC += -DWITH_CUDA5
+# NTHREAD=128 (the WITH_MAX_THREADS branch in lib/gpunb.velocity.cu and
+# lib/gpupot.gpu.cu) needs enough per-SM headroom to host 128 threads per
+# block at those kernels' register-pressure footprint. Empirically, sm_86
+# (Ampere A40, RTX 30-series) is fine; sm_75 (Turing, RTX 2080) spills
+# and trips cudaErrorIllegalAddress at the next device->host memcpy.
+# Gate the define on detected compute capability; below sm_86 we fall
+# back to the upstream-safe NTHREAD=64. Loosen the threshold to 80 only
+# after confirming on a specific Ampere data-center card (e.g. A100).
+ifeq ($(shell test $(NVCC_ARCH) -ge 86 && echo y),y)
 NVCC += -DWITH_MAX_THREADS
+endif
 
 RUNDIR = ./run_versions
 
@@ -245,7 +255,7 @@ gpuirr.cpu.o: ./irrlib/gpuirr.cpp
 	$(CXX) $(CXXFLAGS) -fopenmp -c $^ -o $@
 
 gpunb.cpu.o: lib/gpunb.cpp
-	$(CXX) $(CXXFLAGS) -DWITH_MAX_THREADS -fopenmp $^ -c -o $@
+	$(CXX) $(CXXFLAGS) -DWITH_MAX_CPU_THREADS -fopenmp $^ -c -o $@
 
 gpupot.cpu.o: lib/gpupot.cpp
 	$(CXX) $(CXXFLAGS) -fopenmp $^ -c -o $@

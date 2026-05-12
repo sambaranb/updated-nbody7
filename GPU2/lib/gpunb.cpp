@@ -2,7 +2,7 @@
 #include <cmath>
 #include <cassert>
 
-#ifdef WITH_MAX_THREADS
+#ifdef WITH_MAX_CPU_THREADS
 #define TMAX 128
 #else
 #define TMAX 64
