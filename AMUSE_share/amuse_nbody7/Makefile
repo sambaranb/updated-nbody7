@@ -191,11 +191,102 @@ test-%:
 	cd packages/$* && pytest
 
 
+# Demo targets for AMUSE developers
+#
+# Each demo-<variant> target installs the matching wheel (plus the base
+# `amuse-nbody7` wheel that ships the shared Python interface) and then
+# runs the variant-specific pytest sweep (`--mode=<variant>`) against
+# `tests/test_nbody7.py`. Base installation is idempotent, so re-running
+# a demo target after a fresh source checkout is the standard smoke
+# path.
+#
+# GPU variant: lib/gpunb.velocity.cu and lib/gpupot.gpu.cu include
+# <helper_cuda.h> from NVIDIA's cuda-samples (https://github.com/NVIDIA/cuda-samples),
+# which the conda CUDA toolkit does not ship. Clone the repo and pass
+# `SDK_PATH=<clone>` on the make command line:
+#
+#     make demo-gpu SDK_PATH=$HOME/src/cuda-samples
+#
+# `demo-all` runs cpu+sse+avx in sequence, then gpu if SDK_PATH is set;
+# otherwise it prints a skip notice so devs without an NVIDIA toolchain
+# still get a clean three-variant pass.
+.PHONY: demo-cpu demo-sse demo-avx demo-gpu demo-all demo-help
+
+PYTEST       ?= python -m pytest --verbose --run-slow
+DEMO_WORKDIR ?= demo_workdir
+
+# NBODY7 opens its diagnostic streams (CMPACT, NBSTAT, OUT3, fort.41,
+# fort.992, STOP*, run.out, err.out, ...) on fixed unit numbers in the
+# worker's CWD. Running pytest from the package root would therefore
+# dump those files (and the suite's `test/` archive sub-dir) into the
+# AMUSE source tree. Instead, each demo target chdirs into a per-variant
+# workdir under `$(DEMO_WORKDIR)/` and invokes pytest with the absolute
+# path to the test file. The test suite's `_archive_nbody7_outputs`
+# helper moves stale outputs to `<workdir>/test/` between runs, so each
+# variant's artifacts end up under `$(DEMO_WORKDIR)/<v>/test/`. Wipe
+# everything with `make clean`.
+demo-cpu:
+	$(MAKE) install-amuse-nbody7
+	mkdir -p $(DEMO_WORKDIR)/cpu
+	cd $(DEMO_WORKDIR)/cpu && $(PYTEST) --mode=cpu $(CURDIR)/tests/test_nbody7.py
+
+demo-sse:
+	$(MAKE) install-amuse-nbody7
+	$(MAKE) install-amuse-nbody7-sse
+	mkdir -p $(DEMO_WORKDIR)/sse
+	cd $(DEMO_WORKDIR)/sse && $(PYTEST) --mode=sse $(CURDIR)/tests/test_nbody7.py
+
+demo-avx:
+	$(MAKE) install-amuse-nbody7
+	$(MAKE) install-amuse-nbody7-avx
+	mkdir -p $(DEMO_WORKDIR)/avx
+	cd $(DEMO_WORKDIR)/avx && $(PYTEST) --mode=avx $(CURDIR)/tests/test_nbody7.py
+
+demo-gpu:
+	@if [ -z "$(SDK_PATH)" ]; then \
+	    echo ""; \
+	    echo "ERROR: demo-gpu requires SDK_PATH=/path/to/cuda-samples."; \
+	    echo "  Clone https://github.com/NVIDIA/cuda-samples and pass"; \
+	    echo "  SDK_PATH=<clone-path> on the make command line, e.g.:"; \
+	    echo "      make demo-gpu SDK_PATH=\$$HOME/src/cuda-samples"; \
+	    echo ""; \
+	    exit 1; \
+	fi
+	$(MAKE) install-amuse-nbody7
+	$(MAKE) install-amuse-nbody7-gpu SDK_PATH=$(SDK_PATH)
+	mkdir -p $(DEMO_WORKDIR)/gpu
+	cd $(DEMO_WORKDIR)/gpu && $(PYTEST) --mode=gpu $(CURDIR)/tests/test_nbody7.py
+
+demo-all: demo-cpu demo-sse demo-avx
+	@if [ -n "$(SDK_PATH)" ]; then \
+	    $(MAKE) demo-gpu SDK_PATH=$(SDK_PATH); \
+	else \
+	    echo ""; \
+	    echo "demo-gpu skipped (SDK_PATH not set)."; \
+	    echo "To include the GPU variant, rerun with:"; \
+	    echo "    make demo-all SDK_PATH=/path/to/cuda-samples"; \
+	    echo ""; \
+	fi
+
+demo-help:
+	@echo "amuse-nbody7 demo targets:"
+	@echo "  make demo-cpu                              build + test the cpu variant"
+	@echo "  make demo-sse                              build + test the sse variant (also installs cpu base)"
+	@echo "  make demo-avx                              build + test the avx variant (also installs cpu base)"
+	@echo "  make demo-gpu SDK_PATH=<cuda-samples>      build + test the gpu variant (also installs cpu base)"
+	@echo "  make demo-all  [SDK_PATH=<cuda-samples>]   all variants (gpu only if SDK_PATH set)"
+	@echo ""
+	@echo "NBODY7 worker output (CMPACT, NBSTAT, OUT3, fort.*, ...) is dumped into"
+	@echo "  $(DEMO_WORKDIR)/<variant>/  (override with DEMO_WORKDIR=<path>)"
+	@echo "and the test suite archives per-run artifacts to <workdir>/test/."
+	@echo "Wipe everything with: make clean"
+
+
 # Cleaning up
 .PHONY: clean
 clean:
 	$(MAKE) -C src clean
-	rm -rf *.o *.mod *worker*
+	rm -rf *.o *.mod *worker* $(DEMO_WORKDIR)
 
 .PHONY: distclean
 distclean: clean
