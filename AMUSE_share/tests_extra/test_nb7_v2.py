@@ -28,6 +28,7 @@ print("Errors will be written to:", errfile)
 
 inst = Nbody7(
     converter,
+    mode='cpu',
     redirection="file",          # selects the file path of the dispatcher
     redirect_stdout_file=outfile,
     redirect_stderr_file=errfile,

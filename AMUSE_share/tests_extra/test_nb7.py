@@ -26,6 +26,7 @@ print("Errors will be written to:", errfile)
 
 inst = Nbody7(
     converter,
+    mode='cpu',
     redirection="file",          # selects the file path of the dispatcher
     redirect_stdout_file=outfile,
     redirect_stderr_file=errfile,
@@ -50,6 +51,7 @@ inst.parameters.NNBMAX = 32
 inst.parameters.DTADJ = 0.5
 inst.parameters.DELTAT = 0.5
 inst.parameters.TCRIT = 1.0e+03
+inst.parameters.QE = 1.0e-2
 inst.set_kz(27,1)
 inst.set_kz(28,3)
 inst.commit_parameters()
