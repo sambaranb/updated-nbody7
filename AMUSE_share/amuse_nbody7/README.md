@@ -57,6 +57,16 @@ wheel for the SIMD/GPU variants) and runs the pytest sweep
 `pytest --mode=<variant>`. The base install is idempotent, so the
 targets compose cleanly.
 
+**Why `demo-sse / -avx / -gpu` build the cpu worker too.** The base
+`amuse-nbody7` wheel ships the shared Python interface *together with*
+the cpu worker (`nbody7_worker`) as a wheel artifact — variant wheels
+declare `amuse-nbody7` as a `dependencies` entry, so the base install
+must complete before any variant can be pip-installed, and that base
+install builds `nbody7_worker`. So compiling cpu first under
+`demo-gpu` (or `-sse`, `-avx`) is expected behaviour, not a sign of
+variant contamination. The pytest sweep that follows runs strictly
+against the requested variant's binary via `--mode=<variant>`.
+
 ## Manual build + test (à la carte)
 
 If you want to install and test just one variant by hand — for example
