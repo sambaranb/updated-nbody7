@@ -12,4 +12,5 @@ This top-level directory also holds:
 * `amusenb7v1.tar.gz` — the shipped tarball (contents of `amuse_nbody7/`)
 * `tests_extra/` — standalone smoke + equivalence test scripts kept
   outside the tarball; useful for reproducing the cross-variant
-  numerical-equivalence check on new hardware.
+  numerical-equivalence check on new hardware. The python notebook
+  is for demo to the audience.
