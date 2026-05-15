@@ -1,9 +1,11 @@
 [project]
 name = "amuse-nbody7"
-version = "0.0.1"
-# use the line below instead of the version above if this code is inside the AMUSE
-# repository
-# dynamic = ["version"]
+# Version is resolved by versioningit (see [tool.versioningit.*] below)
+# from the surrounding AMUSE checkout, matching what the variant wheels
+# (amuse-nbody7-{sse,avx,gpu}) already do. This keeps `pip show
+# amuse-nbody7` and the variants on the same version string
+# (e.g. 2026.3.0) instead of the base sitting on a stale static 0.0.1.
+dynamic = ["version"]
 requires-python = ">=3.7"
 dependencies = [
     "amuse-framework>=26.3.0"
