@@ -187,10 +187,26 @@ $(CODELIB): build-objects
 	$(RANLIB) $@
 
 
+# `make clean` (no VARIANT on the command line) sweeps build state for
+# ALL variants. `make clean VARIANT=<v>` keeps the targeted behaviour
+# for callers that only want one variant wiped (e.g. iterating on a
+# single SIMD path). Discriminated via $(origin VARIANT) at parse
+# time: command-line override -> variant-specific clean; otherwise
+# full sweep. (VARIANT ?= cpu above sets origin to "file" when the
+# user did not override on the command line.) The upstream
+# GPU2/Makefile clean rule only wipes its single legacy `Build/` dir,
+# so the per-variant Build_<v>/ subdirs are ours to remove here.
+ifeq ($(origin VARIANT),command line)
 clean:
 	-$(MAKE) -C $(GPU2DIR) clean
 	rm -rf $(BUILDDIR)
 	rm -f $(CODELIB) *.o *.mod
+else
+clean:
+	-$(MAKE) -C $(GPU2DIR) clean
+	rm -rf $(GPU2DIR)/Build_*
+	rm -f libnbody7_*.a *.o *.mod
+endif
 
 # distclean also drops the synced/extracted upstream tree; the outer
 # Makefile's sync-src (or tarball rule) will recreate it on the next
