@@ -1,0 +1,158 @@
+gpupot: Metal initialized on Apple M4 Pro
+gpupot: 0.008543 sec (Metal, n=10000)
+gpupot: 0.006220 sec (Metal, n=10000)
+gpupot: 0.006723 sec (Metal, n=10000)
+***********************
+gpunb: Metal initialized on Apple M4 Pro
+***********************
+***********************
+Opened NBODY6/Metal library
+nbmax = 10100
+***********************
+**************************** 
+Opening GPUIRR lib. CPU ver. 
+ nmax = 10110, lmax = 650
+**************************** 
+***********************
+Closed NBODY6/Metal library
+time send   : 0.000026 sec
+time grav   : 0.062855 sec
+276.597448 Gflops (gravity part only)
+***********************
+**************************** 
+Closing GPUIRR lib. CPU ver. 
+time pred  : 0.000165 sec
+time pact  : 0.000000 sec
+time grav  : 0.001282 sec
+time onep  : 0.000000 sec
+perf grav  : 32.145408 Gflops
+**************************** 
+gpupot: 0.002590 sec (Metal, n=10000)
+***********************
+Opened NBODY6/Metal library
+nbmax = 10100
+***********************
+**************************** 
+Opening GPUIRR lib. CPU ver. 
+ nmax = 10100, lmax = 650
+**************************** 
+gpupot: 0.001844 sec (Metal, n=10000)
+gpupot: 0.005719 sec (Metal, n=10000)
+gpupot: 0.002619 sec (Metal, n=10000)
+gpupot: 0.002712 sec (Metal, n=10000)
+gpupot: 0.001489 sec (Metal, n=10000)
+gpupot: 0.006488 sec (Metal, n=10000)
+gpupot: 0.001878 sec (Metal, n=10000)
+gpupot: 0.002713 sec (Metal, n=10000)
+gpupot: 0.006464 sec (Metal, n=10000)
+gpupot: 0.002792 sec (Metal, n=10000)
+gpupot: 0.001973 sec (Metal, n=10000)
+gpupot: 0.002806 sec (Metal, n=10000)
+gpupot: 0.004553 sec (Metal, n=10000)
+gpupot: 0.002608 sec (Metal, n=10000)
+gpupot: 0.004404 sec (Metal, n=10000)
+gpupot: 0.001489 sec (Metal, n=10000)
+gpupot: 0.003047 sec (Metal, n=10000)
+gpupot: 0.005783 sec (Metal, n=10000)
+gpupot: 0.001900 sec (Metal, n=10000)
+gpupot: 0.001843 sec (Metal, n=10000)
+gpupot: 0.001845 sec (Metal, n=10000)
+gpupot: 0.001912 sec (Metal, n=10000)
+gpupot: 0.002725 sec (Metal, n=10000)
+gpupot: 0.002707 sec (Metal, n=10000)
+gpupot: 0.001936 sec (Metal, n=10000)
+gpupot: 0.001578 sec (Metal, n=10000)
+gpupot: 0.003519 sec (Metal, n=10000)
+gpupot: 0.001948 sec (Metal, n=10000)
+gpupot: 0.001925 sec (Metal, n=10000)
+gpupot: 0.001960 sec (Metal, n=10000)
+gpupot: 0.001887 sec (Metal, n=10000)
+gpupot: 0.002740 sec (Metal, n=10000)
+gpupot: 0.001892 sec (Metal, n=10000)
+gpupot: 0.006073 sec (Metal, n=10000)
+gpupot: 0.001931 sec (Metal, n=10000)
+gpupot: 0.001835 sec (Metal, n=10000)
+gpupot: 0.001912 sec (Metal, n=10000)
+gpupot: 0.002733 sec (Metal, n=10000)
+gpupot: 0.005497 sec (Metal, n=10000)
+gpupot: 0.001880 sec (Metal, n=10000)
+gpupot: 0.001464 sec (Metal, n=10000)
+gpupot: 0.006423 sec (Metal, n=10000)
+gpupot: 0.006438 sec (Metal, n=10000)
+gpupot: 0.002392 sec (Metal, n=10000)
+gpupot: 0.001942 sec (Metal, n=10000)
+gpupot: 0.001488 sec (Metal, n=10000)
+gpupot: 0.004576 sec (Metal, n=10000)
+gpupot: 0.002402 sec (Metal, n=10000)
+gpupot: 0.002590 sec (Metal, n=10000)
+gpupot: 0.001898 sec (Metal, n=10000)
+gpupot: 0.006586 sec (Metal, n=10000)
+gpupot: 0.001482 sec (Metal, n=10000)
+gpupot: 0.002677 sec (Metal, n=10000)
+gpupot: 0.007040 sec (Metal, n=10000)
+gpupot: 0.002982 sec (Metal, n=10000)
+gpupot: 0.001874 sec (Metal, n=10000)
+gpupot: 0.002869 sec (Metal, n=10000)
+gpupot: 0.006513 sec (Metal, n=10000)
+gpupot: 0.001851 sec (Metal, n=10000)
+gpupot: 0.003125 sec (Metal, n=10000)
+gpupot: 0.002731 sec (Metal, n=10000)
+gpupot: 0.006510 sec (Metal, n=10000)
+gpupot: 0.001571 sec (Metal, n=10000)
+gpupot: 0.002710 sec (Metal, n=10000)
+gpupot: 0.006476 sec (Metal, n=10000)
+gpupot: 0.004883 sec (Metal, n=10000)
+gpupot: 0.001963 sec (Metal, n=10000)
+gpupot: 0.001935 sec (Metal, n=10000)
+gpupot: 0.006441 sec (Metal, n=10000)
+gpupot: 0.006478 sec (Metal, n=10000)
+gpupot: 0.002737 sec (Metal, n=10000)
+gpupot: 0.001822 sec (Metal, n=10000)
+gpupot: 0.004456 sec (Metal, n=10000)
+gpupot: 0.002002 sec (Metal, n=10000)
+gpupot: 0.002673 sec (Metal, n=10000)
+gpupot: 0.002772 sec (Metal, n=10000)
+gpupot: 0.005031 sec (Metal, n=10000)
+gpupot: 0.001967 sec (Metal, n=10000)
+gpupot: 0.001910 sec (Metal, n=10000)
+gpupot: 0.006460 sec (Metal, n=10000)
+gpupot: 0.006527 sec (Metal, n=10000)
+gpupot: 0.001832 sec (Metal, n=10000)
+gpupot: 0.006492 sec (Metal, n=10000)
+gpupot: 0.006485 sec (Metal, n=10000)
+gpupot: 0.001431 sec (Metal, n=10000)
+gpupot: 0.002743 sec (Metal, n=10000)
+gpupot: 0.003651 sec (Metal, n=10000)
+gpupot: 0.003011 sec (Metal, n=10000)
+gpupot: 0.004260 sec (Metal, n=10000)
+gpupot: 0.003274 sec (Metal, n=10000)
+gpupot: 0.002697 sec (Metal, n=10000)
+gpupot: 0.002708 sec (Metal, n=10000)
+gpupot: 0.001826 sec (Metal, n=10000)
+gpupot: 0.001969 sec (Metal, n=10000)
+gpupot: 0.004672 sec (Metal, n=10000)
+gpupot: 0.001548 sec (Metal, n=10000)
+gpupot: 0.002708 sec (Metal, n=10000)
+gpupot: 0.005657 sec (Metal, n=10000)
+gpupot: 0.003393 sec (Metal, n=9999)
+gpupot: 0.006097 sec (Metal, n=10000)
+gpupot: 0.002765 sec (Metal, n=10000)
+gpupot: 0.002657 sec (Metal, n=10000)
+gpupot: 0.006323 sec (Metal, n=10000)
+gpupot: 0.002794 sec (Metal, n=10000)
+gpupot: 0.003055 sec (Metal, n=10000)
+***********************
+Closed NBODY6/Metal library
+time send   : 0.059883 sec
+time grav   : 31.969185 sec
+88.225846 Gflops (gravity part only)
+***********************
+**************************** 
+Closing GPUIRR lib. CPU ver. 
+time pred  : 2.918041 sec
+time pact  : 38.414172 sec
+time grav  : 25.242065 sec
+time onep  : 0.000000 sec
+perf grav  : 21.899615 Gflops
+**************************** 
+Note: The following floating-point exceptions are signalling: IEEE_INVALID_FLAG IEEE_DIVIDE_BY_ZERO IEEE_OVERFLOW_FLAG

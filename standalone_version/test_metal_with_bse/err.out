@@ -1,0 +1,223 @@
+gpupot: Metal initialized on Apple M4 Pro
+gpupot: 0.011135 sec (Metal, n=13049)
+gpupot: 0.008793 sec (Metal, n=13049)
+gpupot: 0.008851 sec (Metal, n=13049)
+***********************
+gpunb: Metal initialized on Apple M4 Pro
+***********************
+***********************
+Opened NBODY6/Metal library
+nbmax = 13149
+***********************
+**************************** 
+Opening GPUIRR lib. CPU ver. 
+ nmax = 13159, lmax = 650
+**************************** 
+***********************
+Closed NBODY6/Metal library
+time send   : 0.000011 sec
+time grav   : 0.036288 sec
+281.543340 Gflops (gravity part only)
+***********************
+**************************** 
+Closing GPUIRR lib. CPU ver. 
+time pred  : 0.000173 sec
+time pact  : 0.000000 sec
+time grav  : 0.001758 sec
+time onep  : 0.000000 sec
+perf grav  : 33.466382 Gflops
+**************************** 
+gpupot: 0.009003 sec (Metal, n=13049)
+***********************
+Opened NBODY6/Metal library
+nbmax = 13149
+***********************
+**************************** 
+Opening GPUIRR lib. CPU ver. 
+ nmax = 13149, lmax = 650
+**************************** 
+gpupot: 0.002389 sec (Metal, n=13049)
+gpupot: 0.002387 sec (Metal, n=13049)
+gpupot: 0.004944 sec (Metal, n=13049)
+gpupot: 0.002405 sec (Metal, n=13049)
+gpupot: 0.001954 sec (Metal, n=13049)
+gpupot: 0.002303 sec (Metal, n=13049)
+gpupot: 0.002408 sec (Metal, n=13049)
+gpupot: 0.002378 sec (Metal, n=13049)
+gpupot: 0.001947 sec (Metal, n=13048)
+gpupot: 0.006771 sec (Metal, n=13049)
+gpupot: 0.001944 sec (Metal, n=13049)
+gpupot: 0.004047 sec (Metal, n=13048)
+gpupot: 0.002325 sec (Metal, n=13049)
+gpupot: 0.002400 sec (Metal, n=13049)
+gpupot: 0.002332 sec (Metal, n=13049)
+gpupot: 0.001990 sec (Metal, n=13049)
+gpupot: 0.002316 sec (Metal, n=13049)
+gpupot: 0.002346 sec (Metal, n=13049)
+gpupot: 0.005928 sec (Metal, n=13049)
+gpupot: 0.002311 sec (Metal, n=13049)
+gpupot: 0.002446 sec (Metal, n=13049)
+gpupot: 0.004719 sec (Metal, n=13049)
+gpupot: 0.002389 sec (Metal, n=13049)
+gpupot: 0.002330 sec (Metal, n=13048)
+gpupot: 0.002302 sec (Metal, n=13049)
+gpupot: 0.002047 sec (Metal, n=13049)
+gpupot: 0.004300 sec (Metal, n=13049)
+gpupot: 0.002416 sec (Metal, n=13049)
+gpupot: 0.002332 sec (Metal, n=13049)
+gpupot: 0.002415 sec (Metal, n=13049)
+gpupot: 0.001978 sec (Metal, n=13049)
+gpupot: 0.002427 sec (Metal, n=13049)
+gpupot: 0.002308 sec (Metal, n=13049)
+gpupot: 0.002289 sec (Metal, n=13049)
+gpupot: 0.002378 sec (Metal, n=13049)
+gpupot: 0.001969 sec (Metal, n=13049)
+gpupot: 0.004436 sec (Metal, n=13049)
+gpupot: 0.002316 sec (Metal, n=13049)
+gpupot: 0.003612 sec (Metal, n=13049)
+gpupot: 0.002298 sec (Metal, n=13049)
+gpupot: 0.001943 sec (Metal, n=13049)
+gpupot: 0.005032 sec (Metal, n=13049)
+gpupot: 0.003720 sec (Metal, n=13049)
+gpupot: 0.002003 sec (Metal, n=13049)
+gpupot: 0.002320 sec (Metal, n=13049)
+gpupot: 0.002331 sec (Metal, n=13049)
+gpupot: 0.002320 sec (Metal, n=13049)
+gpupot: 0.002381 sec (Metal, n=13049)
+gpupot: 0.004027 sec (Metal, n=13049)
+gpupot: 0.002327 sec (Metal, n=13049)
+gpupot: 0.006590 sec (Metal, n=13049)
+gpupot: 0.002027 sec (Metal, n=13049)
+gpupot: 0.005005 sec (Metal, n=13049)
+gpupot: 0.002425 sec (Metal, n=13049)
+gpupot: 0.003329 sec (Metal, n=13049)
+gpupot: 0.002363 sec (Metal, n=13048)
+gpupot: 0.002325 sec (Metal, n=13047)
+gpupot: 0.001953 sec (Metal, n=13046)
+gpupot: 0.002300 sec (Metal, n=13046)
+gpupot: 0.002454 sec (Metal, n=13046)
+gpupot: 0.002316 sec (Metal, n=13045)
+gpupot: 0.002316 sec (Metal, n=13045)
+gpupot: 0.005030 sec (Metal, n=13044)
+gpupot: 0.001940 sec (Metal, n=13044)
+gpupot: 0.002332 sec (Metal, n=13044)
+gpupot: 0.001963 sec (Metal, n=13043)
+gpupot: 0.002355 sec (Metal, n=13043)
+gpupot: 0.002449 sec (Metal, n=13043)
+gpupot: 0.002420 sec (Metal, n=13042)
+gpupot: 0.001961 sec (Metal, n=13042)
+gpupot: 0.004926 sec (Metal, n=13042)
+gpupot: 0.002372 sec (Metal, n=13041)
+gpupot: 0.003624 sec (Metal, n=13040)
+gpupot: 0.002359 sec (Metal, n=13040)
+gpupot: 0.002411 sec (Metal, n=13040)
+gpupot: 0.001952 sec (Metal, n=13040)
+gpupot: 0.006279 sec (Metal, n=13040)
+gpupot: 0.002412 sec (Metal, n=13040)
+gpupot: 0.002312 sec (Metal, n=13040)
+gpupot: 0.002379 sec (Metal, n=13040)
+gpupot: 0.006492 sec (Metal, n=13040)
+gpupot: 0.001965 sec (Metal, n=13040)
+gpupot: 0.002400 sec (Metal, n=13040)
+gpupot: 0.008429 sec (Metal, n=13040)
+gpupot: 0.008185 sec (Metal, n=13040)
+gpupot: 0.002408 sec (Metal, n=13040)
+gpupot: 0.008338 sec (Metal, n=13039)
+gpupot: 0.001914 sec (Metal, n=13039)
+gpupot: 0.002273 sec (Metal, n=13039)
+gpupot: 0.002400 sec (Metal, n=13039)
+gpupot: 0.002318 sec (Metal, n=13038)
+gpupot: 0.002079 sec (Metal, n=13037)
+gpupot: 0.005109 sec (Metal, n=13037)
+gpupot: 0.001997 sec (Metal, n=13037)
+gpupot: 0.002322 sec (Metal, n=13037)
+gpupot: 0.002449 sec (Metal, n=13036)
+gpupot: 0.002348 sec (Metal, n=13036)
+gpupot: 0.002329 sec (Metal, n=13035)
+gpupot: 0.005768 sec (Metal, n=13035)
+gpupot: 0.002413 sec (Metal, n=13034)
+gpupot: 0.005009 sec (Metal, n=13034)
+gpupot: 0.002312 sec (Metal, n=13034)
+gpupot: 0.006314 sec (Metal, n=13034)
+gpupot: 0.002401 sec (Metal, n=13033)
+gpupot: 0.005243 sec (Metal, n=13033)
+gpupot: 0.001957 sec (Metal, n=13033)
+gpupot: 0.002336 sec (Metal, n=13033)
+gpupot: 0.002441 sec (Metal, n=13033)
+gpupot: 0.006761 sec (Metal, n=13032)
+gpupot: 0.002090 sec (Metal, n=13032)
+gpupot: 0.002391 sec (Metal, n=13031)
+gpupot: 0.001961 sec (Metal, n=13031)
+gpupot: 0.008332 sec (Metal, n=13031)
+gpupot: 0.002372 sec (Metal, n=13031)
+gpupot: 0.002292 sec (Metal, n=13030)
+gpupot: 0.002431 sec (Metal, n=13030)
+gpupot: 0.004489 sec (Metal, n=13029)
+gpupot: 0.002028 sec (Metal, n=13028)
+gpupot: 0.002275 sec (Metal, n=13028)
+gpupot: 0.002404 sec (Metal, n=13028)
+gpupot: 0.006877 sec (Metal, n=13027)
+gpupot: 0.002430 sec (Metal, n=13027)
+gpupot: 0.005636 sec (Metal, n=13027)
+gpupot: 0.002396 sec (Metal, n=13027)
+gpupot: 0.002328 sec (Metal, n=13027)
+gpupot: 0.002312 sec (Metal, n=13026)
+gpupot: 0.005036 sec (Metal, n=13026)
+gpupot: 0.002007 sec (Metal, n=13025)
+gpupot: 0.002338 sec (Metal, n=13025)
+gpupot: 0.001954 sec (Metal, n=13025)
+gpupot: 0.002294 sec (Metal, n=13025)
+gpupot: 0.002509 sec (Metal, n=13025)
+gpupot: 0.002395 sec (Metal, n=13024)
+gpupot: 0.002359 sec (Metal, n=13024)
+gpupot: 0.008800 sec (Metal, n=13024)
+gpupot: 0.001952 sec (Metal, n=13023)
+gpupot: 0.004156 sec (Metal, n=13023)
+gpupot: 0.002400 sec (Metal, n=13023)
+gpupot: 0.004627 sec (Metal, n=13023)
+gpupot: 0.002455 sec (Metal, n=13023)
+gpupot: 0.002306 sec (Metal, n=13022)
+gpupot: 0.001964 sec (Metal, n=13022)
+gpupot: 0.003580 sec (Metal, n=13022)
+gpupot: 0.003298 sec (Metal, n=13021)
+gpupot: 0.002326 sec (Metal, n=13021)
+gpupot: 0.002410 sec (Metal, n=13021)
+gpupot: 0.006981 sec (Metal, n=13021)
+gpupot: 0.001956 sec (Metal, n=13020)
+gpupot: 0.003456 sec (Metal, n=13020)
+gpupot: 0.002334 sec (Metal, n=13020)
+gpupot: 0.001992 sec (Metal, n=13019)
+gpupot: 0.002322 sec (Metal, n=13017)
+gpupot: 0.002300 sec (Metal, n=13017)
+gpupot: 0.001960 sec (Metal, n=13016)
+gpupot: 0.003239 sec (Metal, n=13016)
+gpupot: 0.006500 sec (Metal, n=13015)
+gpupot: 0.004878 sec (Metal, n=13015)
+gpupot: 0.002310 sec (Metal, n=13015)
+gpupot: 0.004362 sec (Metal, n=13014)
+gpupot: 0.001949 sec (Metal, n=13014)
+gpupot: 0.002317 sec (Metal, n=13014)
+gpupot: 0.002344 sec (Metal, n=13014)
+gpupot: 0.002349 sec (Metal, n=13014)
+gpupot: 0.002398 sec (Metal, n=13013)
+gpupot: 0.001960 sec (Metal, n=13013)
+gpupot: 0.001956 sec (Metal, n=13013)
+gpupot: 0.002310 sec (Metal, n=13013)
+gpupot: 0.004463 sec (Metal, n=13013)
+gpupot: 0.002326 sec (Metal, n=13011)
+gpupot: 0.002366 sec (Metal, n=13010)
+***********************
+Closed NBODY6/Metal library
+time send   : 0.257189 sec
+time grav   : 105.226556 sec
+175.735757 Gflops (gravity part only)
+***********************
+**************************** 
+Closing GPUIRR lib. CPU ver. 
+time pred  : 5.651043 sec
+time pact  : 44.055622 sec
+time grav  : 46.614813 sec
+time onep  : 0.000000 sec
+perf grav  : 10.527229 Gflops
+**************************** 
+Note: The following floating-point exceptions are signalling: IEEE_DIVIDE_BY_ZERO IEEE_OVERFLOW_FLAG

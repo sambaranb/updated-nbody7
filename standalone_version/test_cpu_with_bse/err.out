@@ -1,0 +1,25 @@
+**************************** 
+Opening GPUIRR lib. CPU ver. 
+ nmax = 13159, lmax = 650
+**************************** 
+**************************** 
+Closing GPUIRR lib. CPU ver. 
+time pred  : 0.000100 sec
+time pact  : 0.000000 sec
+time grav  : 0.001448 sec
+time onep  : 0.000000 sec
+perf grav  : 40.623540 Gflops
+**************************** 
+**************************** 
+Opening GPUIRR lib. CPU ver. 
+ nmax = 13149, lmax = 650
+**************************** 
+**************************** 
+Closing GPUIRR lib. CPU ver. 
+time pred  : 5.767868 sec
+time pact  : 44.405536 sec
+time grav  : 46.299790 sec
+time onep  : 0.000000 sec
+perf grav  : 10.559316 Gflops
+**************************** 
+Note: The following floating-point exceptions are signalling: IEEE_DIVIDE_BY_ZERO
