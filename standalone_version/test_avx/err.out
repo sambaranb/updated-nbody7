@@ -1,0 +1,154 @@
+gpupot: 0.009948 sec
+gpupot: 0.006921 sec
+gpupot: 0.007017 sec
+***********************
+Initializing NBODY6/AVX library
+#threads = 20
+***********************
+**************************** 
+Opening GPUIRR lib. AVX ver. 
+ nmax = 10110, lmax = 650
+**************************** 
+***********************
+Closed NBODY6/AVX library
+time send : 0.000018 sec
+time grav : 2.834912 sec
+95.241041  Gflops (gravity part only)
+***********************
+**************************** 
+Closing GPUIRR lib. AVX ver. 
+time grav  : 0.002377 sec
+
+perf grav  : 115.576407 Gflops
+perf grav  : 237.703323 usec
+<#NB>      : 457.881600 
+**************************** 
+gpupot: 0.006871 sec
+***********************
+Initializing NBODY6/AVX library
+#threads = 20
+***********************
+**************************** 
+Opening GPUIRR lib. AVX ver. 
+ nmax = 10100, lmax = 650
+**************************** 
+gpupot: 0.013606 sec
+gpupot: 0.006906 sec
+gpupot: 0.006952 sec
+gpupot: 0.006914 sec
+gpupot: 0.006935 sec
+gpupot: 0.006865 sec
+gpupot: 0.006938 sec
+gpupot: 0.007050 sec
+gpupot: 0.006928 sec
+gpupot: 0.006953 sec
+gpupot: 0.006950 sec
+gpupot: 0.006917 sec
+gpupot: 0.006940 sec
+gpupot: 0.006922 sec
+gpupot: 0.007090 sec
+gpupot: 0.006991 sec
+gpupot: 0.006909 sec
+gpupot: 0.007007 sec
+gpupot: 0.007013 sec
+gpupot: 0.006965 sec
+gpupot: 0.006930 sec
+gpupot: 0.006956 sec
+gpupot: 0.007009 sec
+gpupot: 0.007006 sec
+gpupot: 0.007013 sec
+gpupot: 0.006951 sec
+gpupot: 0.007761 sec
+gpupot: 0.007035 sec
+gpupot: 0.006891 sec
+gpupot: 0.007032 sec
+gpupot: 0.006882 sec
+gpupot: 0.006910 sec
+gpupot: 0.006953 sec
+gpupot: 0.007118 sec
+gpupot: 0.008896 sec
+gpupot: 0.006926 sec
+gpupot: 0.006918 sec
+gpupot: 0.006900 sec
+gpupot: 0.009155 sec
+gpupot: 0.006893 sec
+gpupot: 0.007875 sec
+gpupot: 0.007007 sec
+gpupot: 0.007848 sec
+gpupot: 0.007003 sec
+gpupot: 0.006963 sec
+gpupot: 0.008189 sec
+gpupot: 0.007006 sec
+gpupot: 0.007206 sec
+gpupot: 0.007572 sec
+gpupot: 0.008506 sec
+gpupot: 0.006995 sec
+gpupot: 0.006969 sec
+gpupot: 0.007003 sec
+gpupot: 0.006970 sec
+gpupot: 0.006984 sec
+gpupot: 0.007055 sec
+gpupot: 0.007000 sec
+gpupot: 0.007339 sec
+gpupot: 0.006960 sec
+gpupot: 0.007018 sec
+gpupot: 0.006950 sec
+gpupot: 0.007206 sec
+gpupot: 0.007001 sec
+gpupot: 0.006985 sec
+gpupot: 0.007031 sec
+gpupot: 0.007794 sec
+gpupot: 0.007048 sec
+gpupot: 0.006992 sec
+gpupot: 0.006873 sec
+gpupot: 0.006958 sec
+gpupot: 0.007251 sec
+gpupot: 0.007045 sec
+gpupot: 0.006897 sec
+gpupot: 0.006972 sec
+gpupot: 0.007034 sec
+gpupot: 0.006995 sec
+gpupot: 0.007019 sec
+gpupot: 0.007005 sec
+gpupot: 0.008059 sec
+gpupot: 0.006946 sec
+gpupot: 0.007077 sec
+gpupot: 0.006982 sec
+gpupot: 0.006996 sec
+gpupot: 0.006912 sec
+gpupot: 0.006972 sec
+gpupot: 0.007056 sec
+gpupot: 0.007984 sec
+gpupot: 0.006958 sec
+gpupot: 0.007053 sec
+gpupot: 0.007682 sec
+gpupot: 0.007092 sec
+gpupot: 0.007052 sec
+gpupot: 0.007036 sec
+gpupot: 0.007054 sec
+gpupot: 0.006939 sec
+gpupot: 0.007050 sec
+gpupot: 0.007068 sec
+gpupot: 0.007017 sec
+gpupot: 0.007098 sec
+gpupot: 0.007084 sec
+gpupot: 0.007153 sec
+gpupot: 0.007033 sec
+gpupot: 0.007105 sec
+gpupot: 0.007064 sec
+gpupot: 0.007276 sec
+***********************
+Closed NBODY6/AVX library
+time send : 0.238768 sec
+time grav : 18.790591 sec
+328.069984  Gflops (gravity part only)
+***********************
+**************************** 
+Closing GPUIRR lib. AVX ver. 
+time grav  : 12.998555 sec
+
+perf grav  : 62.649717 Gflops
+perf grav  : 38.576761 usec
+<#NB>      : 263.163243 
+**************************** 
+Note: The following floating-point exceptions are signalling: IEEE_INVALID_FLAG IEEE_DIVIDE_BY_ZERO

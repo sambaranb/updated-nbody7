@@ -1,0 +1,255 @@
+***********************
+Initializing NBODY6/GPU library
+#CPU 32, #GPU 1
+ device: 0
+ device 0: NVIDIA A40
+***********************
+gpupot: 0.003454 sec
+gpupot: 0.002450 sec
+gpupot: 0.002482 sec
+***********************
+Opened NBODY6/GPU library
+#CPU 32, #GPU 1
+ device: 0
+ 0 13149
+nbmax = 13149
+***********************
+**************************** 
+Opening GPUIRR lib. SSE ver. 
+  (debug ver. at 2013/11/15) 
+ nmax = 13159, lmax = 650
+**************************** 
+***********************
+Closed NBODY6/GPU library
+time send   : 0.000180 sec
+time grav   : 0.002715 sec
+time reduce : 0.001178 sec
+time regtot : 0.004073 sec
+3763.191305 Gflops (gravity part only)
+***********************
+**************************** 
+Closing GPUIRR lib. SSE ver. 
+time pred  : 0.000213 sec
+time pact  : 0.000000 sec
+time grav  : 0.002690 sec
+time onep  : 0.000000 sec
+time push  : 0.000000 sec
+time sort  : 0.000000 sec
+-------------------
+time total : 0.002903 sec
+
+perf grav  : 21.872829 Gflops
+perf grav  : 206.892307 usec
+perf pred  : 16.334295 nsec
+perf pact  : -nan nsec
+<#NB>      : 75.138785 
+**************************** 
+gpupot: 0.002932 sec
+***********************
+Opened NBODY6/GPU library
+#CPU 32, #GPU 1
+ device: 0
+ 0 13149
+nbmax = 13149
+***********************
+**************************** 
+Opening GPUIRR lib. SSE ver. 
+  (debug ver. at 2013/11/15) 
+ nmax = 13149, lmax = 650
+**************************** 
+gpupot: 0.001081 sec
+gpupot: 0.001147 sec
+gpupot: 0.001054 sec
+gpupot: 0.001047 sec
+gpupot: 0.001086 sec
+gpupot: 0.001120 sec
+gpupot: 0.001063 sec
+gpupot: 0.001049 sec
+gpupot: 0.001056 sec
+gpupot: 0.001044 sec
+gpupot: 0.001060 sec
+gpupot: 0.001043 sec
+gpupot: 0.001075 sec
+gpupot: 0.001053 sec
+gpupot: 0.001125 sec
+gpupot: 0.001064 sec
+gpupot: 0.001082 sec
+gpupot: 0.001046 sec
+gpupot: 0.001047 sec
+gpupot: 0.001050 sec
+gpupot: 0.001065 sec
+gpupot: 0.001056 sec
+gpupot: 0.001048 sec
+gpupot: 0.001046 sec
+gpupot: 0.001117 sec
+gpupot: 0.001070 sec
+gpupot: 0.001113 sec
+gpupot: 0.001142 sec
+gpupot: 0.001077 sec
+gpupot: 0.001111 sec
+gpupot: 0.001058 sec
+gpupot: 0.001069 sec
+gpupot: 0.001072 sec
+gpupot: 0.001054 sec
+gpupot: 0.001065 sec
+gpupot: 0.001134 sec
+gpupot: 0.001079 sec
+gpupot: 0.001050 sec
+gpupot: 0.001080 sec
+gpupot: 0.001047 sec
+gpupot: 0.001057 sec
+gpupot: 0.001049 sec
+gpupot: 0.001052 sec
+gpupot: 0.001055 sec
+gpupot: 0.001062 sec
+gpupot: 0.001067 sec
+gpupot: 0.001055 sec
+gpupot: 0.001046 sec
+gpupot: 0.001054 sec
+gpupot: 0.001050 sec
+gpupot: 0.001056 sec
+gpupot: 0.001064 sec
+gpupot: 0.001047 sec
+gpupot: 0.001055 sec
+gpupot: 0.001049 sec
+gpupot: 0.001052 sec
+gpupot: 0.001048 sec
+gpupot: 0.001066 sec
+gpupot: 0.001047 sec
+gpupot: 0.001045 sec
+gpupot: 0.001084 sec
+gpupot: 0.001048 sec
+gpupot: 0.001119 sec
+gpupot: 0.001059 sec
+gpupot: 0.001048 sec
+gpupot: 0.001048 sec
+gpupot: 0.001051 sec
+gpupot: 0.001048 sec
+gpupot: 0.001038 sec
+gpupot: 0.001053 sec
+gpupot: 0.001046 sec
+gpupot: 0.001049 sec
+gpupot: 0.001048 sec
+gpupot: 0.001046 sec
+gpupot: 0.001044 sec
+gpupot: 0.001062 sec
+gpupot: 0.001044 sec
+gpupot: 0.001061 sec
+gpupot: 0.001048 sec
+gpupot: 0.001047 sec
+gpupot: 0.001035 sec
+gpupot: 0.001061 sec
+gpupot: 0.001047 sec
+gpupot: 0.001050 sec
+gpupot: 0.001042 sec
+gpupot: 0.001048 sec
+gpupot: 0.001050 sec
+gpupot: 0.001059 sec
+gpupot: 0.001036 sec
+gpupot: 0.001048 sec
+gpupot: 0.001043 sec
+gpupot: 0.001052 sec
+gpupot: 0.001043 sec
+gpupot: 0.001062 sec
+gpupot: 0.001052 sec
+gpupot: 0.001053 sec
+gpupot: 0.001049 sec
+gpupot: 0.001054 sec
+gpupot: 0.001044 sec
+gpupot: 0.001058 sec
+gpupot: 0.001057 sec
+gpupot: 0.001060 sec
+gpupot: 0.001047 sec
+gpupot: 0.001050 sec
+gpupot: 0.001044 sec
+gpupot: 0.001061 sec
+gpupot: 0.001050 sec
+gpupot: 0.001054 sec
+gpupot: 0.001056 sec
+gpupot: 0.001052 sec
+gpupot: 0.001046 sec
+gpupot: 0.001068 sec
+gpupot: 0.001050 sec
+gpupot: 0.001040 sec
+gpupot: 0.001059 sec
+gpupot: 0.001044 sec
+gpupot: 0.001054 sec
+gpupot: 0.001063 sec
+gpupot: 0.001046 sec
+gpupot: 0.001053 sec
+gpupot: 0.001048 sec
+gpupot: 0.001061 sec
+gpupot: 0.001047 sec
+gpupot: 0.001062 sec
+gpupot: 0.001045 sec
+gpupot: 0.001046 sec
+gpupot: 0.001057 sec
+gpupot: 0.001046 sec
+gpupot: 0.001053 sec
+gpupot: 0.001070 sec
+gpupot: 0.001053 sec
+gpupot: 0.001049 sec
+gpupot: 0.001051 sec
+gpupot: 0.001059 sec
+gpupot: 0.001052 sec
+gpupot: 0.001058 sec
+gpupot: 0.001045 sec
+gpupot: 0.001047 sec
+gpupot: 0.001052 sec
+gpupot: 0.001048 sec
+gpupot: 0.001043 sec
+gpupot: 0.001051 sec
+gpupot: 0.001045 sec
+gpupot: 0.001055 sec
+gpupot: 0.001049 sec
+gpupot: 0.001050 sec
+gpupot: 0.001056 sec
+gpupot: 0.001056 sec
+gpupot: 0.001062 sec
+gpupot: 0.001051 sec
+gpupot: 0.001054 sec
+gpupot: 0.001055 sec
+gpupot: 0.001042 sec
+gpupot: 0.001060 sec
+gpupot: 0.001042 sec
+gpupot: 0.001046 sec
+gpupot: 0.001047 sec
+gpupot: 0.001056 sec
+gpupot: 0.001047 sec
+gpupot: 0.001064 sec
+gpupot: 0.001038 sec
+gpupot: 0.001065 sec
+gpupot: 0.001052 sec
+gpupot: 0.001050 sec
+gpupot: 0.001040 sec
+gpupot: 0.001053 sec
+gpupot: 0.001049 sec
+gpupot: 0.001051 sec
+gpupot: 0.001053 sec
+gpupot: 0.001048 sec
+***********************
+Closed NBODY6/GPU library
+time send   : 2.666021 sec
+time grav   : 4.910040 sec
+time reduce : 0.867037 sec
+time regtot : 8.443099 sec
+3483.318264 Gflops (gravity part only)
+***********************
+**************************** 
+Closing GPUIRR lib. SSE ver. 
+time pred  : 1.321957 sec
+time pact  : 3.692590 sec
+time grav  : 15.007153 sec
+time onep  : 0.000000 sec
+time push  : 3.037057 sec
+time sort  : 4.966066 sec
+-------------------
+time total : 28.024823 sec
+
+perf grav  : 40.160777 Gflops
+perf grav  : 22.517373 usec
+perf pred  : 1.268503 nsec
+perf pact  : 20.643723 nsec
+<#NB>      : 74.339825 
+**************************** 
+Note: The following floating-point exceptions are signalling: IEEE_INVALID_FLAG IEEE_DIVIDE_BY_ZERO

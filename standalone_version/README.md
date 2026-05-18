@@ -43,9 +43,16 @@ make cpu
 
 # X86_only: X86 SIMD variants
 make sse
+
 make avx
-(Remember to uncomment the avx=enable line in the beginning of GPU2/Makefile
-for the AVX compilation; alternatively, supply avx=enable from the command line.)
+
+Remember to uncomment the avx=enable line in the beginning of GPU2/Makefile
+for the AVX compilation; alternatively, supply it from the command line:
+
+make avx avx=enable
+
+In the near future, the Makefile will be amended to make the standalone
+compilation more user-friendly.
 
 # X86 + NVIDIA/CUDA only: the SSE/CUDA variant
 make gpu SDK_PATH=</path/to/cuda-samples>  
@@ -66,7 +73,7 @@ make metal
 
 # Notes:
 
-The above instructions assume that the Fortran and g++ compilers,
+The above instructions assume that the gfortran and g++ compilers,
 as well as CUDA, are installed in the system, outside of a conda
 environment. In case of conda-only installations, activate
 the appropriate virtual environment first, both for compiling and running the
