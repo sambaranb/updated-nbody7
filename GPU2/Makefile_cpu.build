@@ -171,6 +171,34 @@ sse: $(OBJECTS)
 cpu: $(OBJECTS)
 	$(LD_CPU) $(FFLAGS) $(OBJECTS) $(LDCPU_OPT) -o nbody6
 
+# MPI + CPU variant link (Path B, `mpi-cpu'). FC is passed as mpif90 from
+# GPU2/Makefile, so LD_MPICPU = $(FC) pulls in the MPI runtime automatically;
+# LDMPICPU_OPT only adds the C++ stdlib + OpenMP like the cpu link. Swap the
+# standalone main (nbody6_main.o) for the MPI driver (nbody6_main_mpi.o) and
+# link the real MPI wrapper (mpi_nbody.o). Both extra objects were compiled
+# with mpif90 in Stage 1 (GPU2/) and copied into this Build dir. cpu-objects
+# (AMUSE) is left untouched, so the shipped serial/AMUSE builds are
+# unaffected. The future `mpi-metal' link will mirror this with the Metal
+# frameworks added (cf. the serial `metal' target's LDMETAL_OPT).
+LD_MPICPU = $(FC)
+# C++ runtime name differs by platform (same issue handled in the AMUSE
+# outer Makefile): macOS clang/libc++ -> -lc++; Linux GCC/libstdc++ ->
+# -lstdc++. The CPU force libs are built with the platform's default g++
+# (/usr/bin/g++ = Apple clang on this Mac), so match its runtime here.
+ifeq ($(shell uname -s),Darwin)
+# -B/usr/bin: link with Apple's system ld (ld-1267) instead of the
+# conda-shipped ld64-956.6, which hits an internal setFixup64 assertion on
+# NBODY7's very large static COMMON blocks (the throwaway full-executable
+# link the AMUSE build avoids via cpu-objects). The system linker handles
+# the 64-bit fixups cleanly. Drop once conda's ld64 is fixed.
+LDMPICPU_OPT = -lc++ -fopenmp -B/usr/bin
+else
+LDMPICPU_OPT = -lstdc++ -fopenmp
+endif
+
+mpi-cpu: $(filter-out nbody6_main.o,$(OBJECTS)) nbody6_main_mpi.o mpi_nbody.o
+	$(LD_MPICPU) $(FFLAGS) $(filter-out nbody6_main.o,$(OBJECTS)) nbody6_main_mpi.o mpi_nbody.o $(LDMPICPU_OPT) -o nbody6
+
 # Build all objects but skip the final link. Used by the AMUSE worker
 # build, which only needs the .o files (which it then archives into
 # libnbody7.a) and supplies its own main via interface.f90.

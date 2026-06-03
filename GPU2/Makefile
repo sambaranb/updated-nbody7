@@ -35,6 +35,11 @@ FFLAGS   += -mavx
 CXXFLAGS += -mavx
 endif
 
+# MPI Fortran wrapper compiler for the `mpi' variant (Path B internal
+# parallelism). Open MPI in the conda Amuse-env on this Mac. Override on the
+# make command line if mpif90 is not on PATH (e.g. MPIFC=mpifort).
+MPIFC   ?= mpif90
+
 # CUDA toolkit location.
 # Default order:
 #   1. CUDA_PATH=... on the make command line (or env)        -- highest priority
@@ -144,6 +149,25 @@ cpu: gpunb.cpu.o gpupot.cpu.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o start
 	make cpu -C ./$(BUILD) -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
 	mv -f ./$(BUILD)/nbody6 $(RUNDIR)/$(BINNAME).cpu
 
+# -------------------------------------------------------------------------
+# MPI + CPU variant `mpi-cpu' (Path B PoC, increment 1: lifecycle plumbing).
+# The CPU force libraries as `cpu' (deterministic, for the bit-identical
+# decomposition test in increment 2), but built/linked with mpif90 and
+# wired to the real MPI wrapper (mpi_nbody.o) plus the standalone MPI driver
+# (nbody6_main_mpi.o, which calls NBODY_MPI_INIT). FULLY ADDITIVE: shares no
+# object-list edits with the serial cpu/sse/avx/gpu/metal or AMUSE *-objects
+# targets, so every shipped build stays byte-identical. The `mpi-metal'
+# (Apple GPU) and `mpi-gpu' (CUDA) MPI variants will slot in alongside.
+# Executable: run_versions/$(BINNAME).mpi-cpu. Decomposition lands in incr. 2.
+mpi-cpu: gpunb.cpu.o gpupot.cpu.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.cpu.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o mpi_nbody.o nbody6_main_mpi.o | $(BUILD) $(RUNDIR)
+	cp -f gpunb.cpu.o gpunb.o
+	cp -f gpupot.cpu.o gpupot.o
+	cp -p cnbint6.o cnbint.o
+	cp -p gpuirr.cpu.o gpuirr.o
+	cp -f *.o ./$(BUILD)
+	make mpi-cpu -C ./$(BUILD) -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC="$(MPIFC)"
+	mv -f ./$(BUILD)/nbody6 $(RUNDIR)/$(BINNAME).mpi-cpu
+
 # Same Stage-1 + Stage-2 object compilation as `cpu`, but stops before
 # the throwaway link of `nbody6`. Used by the AMUSE-nbody7 worker build
 # which archives the resulting Build/*.o into libnbody7.a and supplies
@@ -226,6 +250,15 @@ intgrt.s: intgrt.omp.f
 
 start.o: start.f
 	$(FC) $(FFLAGS) -fopenmp $^ -c -o $@
+
+# Path B MPI wrapper + standalone MPI driver. Compiled with mpif90 so
+# mpif.h / MPI_* symbols resolve; the stub counterpart (mpi_nbody_stub.f,
+# used by serial builds in increment 2) compiles with plain $(FC).
+mpi_nbody.o: mpi_nbody.f
+	$(MPIFC) $(FFLAGS) $^ -c -o $@
+
+nbody6_main_mpi.o: nbody6_main_mpi.f
+	$(MPIFC) $(FFLAGS) $^ -c -o $@
 
 gpunb.gpu.o: lib/gpunb.velocity.cu
 	$(NVCC) $^ -c -o $@
