@@ -71,3 +71,88 @@
 *
       RETURN
       END
+*
+************************************************************************
+      SUBROUTINE NBODY_REGF_RANGE(NI,I0,NLOC)
+*
+*       Path B: this rank's contiguous sub-range [I0 .. I0+NLOC-1] of the NI
+*       regular-force block members (static block distribution). Each rank
+*       evaluates GPUNB_REGF only for its sub-range. Single rank (NRANKS=1):
+*       I0=1, NLOC=NI -> the caller's GPUNB_REGF call is the original one.
+      INCLUDE 'mpi_nbody.h'
+      INTEGER  NI,I0,NLOC,IBASE,IREM
+*
+      IF (NRANKS.LE.1) THEN
+          I0   = 1
+          NLOC = NI
+          RETURN
+      END IF
+      IBASE = NI/NRANKS
+      IREM  = MOD(NI,NRANKS)
+*       Ranks 0..IREM-1 take IBASE+1 members each; the rest take IBASE.
+      IF (MYRANK.LT.IREM) THEN
+          NLOC = IBASE + 1
+          I0   = MYRANK*(IBASE+1) + 1
+      ELSE
+          NLOC = IBASE
+          I0   = IREM*(IBASE+1) + (MYRANK-IREM)*IBASE + 1
+      END IF
+*
+      RETURN
+      END
+*
+************************************************************************
+      SUBROUTINE NBODY_REGF_GATHER(NI,GACC,GJRK,GPHI,LSTGP,LMX)
+*
+*       Path B: Allgather the regular-force results (acceleration, jerk,
+*       potential, neighbour lists) each rank computed for its sub-range, so
+*       every rank holds the full NI-member block before the replicated
+*       GPUCOR. MPI_IN_PLACE: each rank's own slice already sits in the
+*       buffers at its displacement, MPI fills in the other ranks' slices.
+*       The per-rank counts/displacements mirror NBODY_REGF_RANGE exactly.
+      INCLUDE 'mpi_nbody.h'
+      INCLUDE 'mpif.h'
+      INTEGER  NI,LMX
+      REAL*8   GACC(3,*),GJRK(3,*),GPHI(*)
+      INTEGER  LSTGP(LMX,*)
+      INTEGER  MAXR
+      PARAMETER (MAXR=4096)
+      INTEGER  C3(MAXR),D3(MAXR),C1(MAXR),D1(MAXR),CL(MAXR),DL(MAXR)
+      INTEGER  R,IBASE,IREM,JLOC,J0,IERR
+*
+      IF (NRANKS.GT.MAXR) THEN
+          WRITE (6,*) 'NBODY_REGF_GATHER: NRANKS exceeds MAXR', NRANKS
+          CALL ABORT
+      END IF
+      IBASE = NI/NRANKS
+      IREM  = MOD(NI,NRANKS)
+      DO 10 R = 1,NRANKS
+*       0-based rank index (R-1); mirror the split in NBODY_REGF_RANGE.
+          IF (R-1.LT.IREM) THEN
+              JLOC = IBASE + 1
+              J0   = (R-1)*(IBASE+1)
+          ELSE
+              JLOC = IBASE
+              J0   = IREM*(IBASE+1) + (R-1-IREM)*IBASE
+          END IF
+          C3(R) = 3*JLOC
+          D3(R) = 3*J0
+          C1(R) = JLOC
+          D1(R) = J0
+          CL(R) = LMX*JLOC
+          DL(R) = LMX*J0
+   10 CONTINUE
+*
+*       Acceleration and jerk (3 components/member); potential (1/member);
+*       neighbour lists (LMX integers/member, fixed column stride).
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GACC,C3,D3,MPI_DOUBLE_PRECISION,NBODY_COMM,IERR)
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GJRK,C3,D3,MPI_DOUBLE_PRECISION,NBODY_COMM,IERR)
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GPHI,C1,D1,MPI_DOUBLE_PRECISION,NBODY_COMM,IERR)
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     LSTGP,CL,DL,MPI_INTEGER,NBODY_COMM,IERR)
+*
+      RETURN
+      END

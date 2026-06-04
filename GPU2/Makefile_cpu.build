@@ -161,6 +161,11 @@ fpoly0.f kspinit.f kspreg.f
 
 OBJECTS = $(SOURCE:.f=.o)
 OBJECTS += gpuirr.o gpunb.o gpupot.o wtime.o cnbint.o cxvpred.o
+# Path B: the no-op MPI stub (NBODY_MPI_INIT/FINALIZE, NBODY_REGF_RANGE/
+# GATHER, /MPICOMM/ BLOCK DATA) links into every serial / AMUSE build so the
+# wrapper calls added to the shared intgrt.omp.f resolve (NRANKS=1 -> serial
+# path). The mpi-cpu target filters this out and links the real mpi_nbody.o.
+OBJECTS += mpi_nbody_stub.o
 
 gpu: $(OBJECTS)
 	$(LD_GPU) $(FFLAGS) $(OBJECTS) $(LDGPU_OPT) -o nbody6
@@ -196,8 +201,8 @@ else
 LDMPICPU_OPT = -lstdc++ -fopenmp
 endif
 
-mpi-cpu: $(filter-out nbody6_main.o,$(OBJECTS)) nbody6_main_mpi.o mpi_nbody.o
-	$(LD_MPICPU) $(FFLAGS) $(filter-out nbody6_main.o,$(OBJECTS)) nbody6_main_mpi.o mpi_nbody.o $(LDMPICPU_OPT) -o nbody6
+mpi-cpu: $(filter-out nbody6_main.o mpi_nbody_stub.o,$(OBJECTS)) nbody6_main_mpi.o mpi_nbody.o
+	$(LD_MPICPU) $(FFLAGS) $(filter-out nbody6_main.o mpi_nbody_stub.o,$(OBJECTS)) nbody6_main_mpi.o mpi_nbody.o $(LDMPICPU_OPT) -o nbody6
 
 # Build all objects but skip the final link. Used by the AMUSE worker
 # build, which only needs the .o files (which it then archives into

@@ -5,6 +5,7 @@
 *       -------------------------------
 *
       INCLUDE 'common6.h'
+      INCLUDE 'mpi_nbody.h'
       COMMON/CLUMP/   BODYS(NCMAX,5),T0S(5),TS(5),STEPS(5),RMAXS(5),
      &                NAMES(NCMAX,5),ISYS(5)
       COMMON/CHAINC/  XC(3,NCMAX),UC(3,NCMAX),BODYC(NCMAX),ICH,
@@ -347,7 +348,7 @@
               IRR(L) = 0
           END IF
    28 CONTINUE
-* 
+*
 *       Decide between predicting <= NPACT active (NFR = 0) or all particles.
       IF (NXTLEN.LE.NPACT.AND.NFR.EQ.0) THEN
 *
@@ -480,8 +481,23 @@
 !$omp end parallel do
 *
 *       Evaluate forces, derivatives and neighbour lists for new block.
-          CALL GPUNB_REGF(NI,H2I,DTR,XI,VI,GPUACC,GPUJRK,GPUPHI,LMAX,
-     &                                                   NBMAX,LISTGP)
+*       Path B (internal MPI): split the regular-force evaluation across
+*       ranks. Each rank evaluates GPUNB_REGF only for its contiguous
+*       sub-range [MYI0 .. MYI0+MYNI-1] of the NI block members; the results
+*       (acc/jerk/phi + neighbour lists) are then Allgathered so every rank
+*       holds the full block before the replicated GPUCOR correction. On a
+*       single rank MYI0=1, MYNI=NI and this is the original serial call;
+*       NRANKS=1 also skips the gather -> byte-identical serial behaviour.
+          CALL NBODY_REGF_RANGE(NI,MYI0,MYNI)
+          IF (MYNI.GT.0) THEN
+              CALL GPUNB_REGF(MYNI,H2I(MYI0),DTR(MYI0),XI(1,MYI0),
+     &                        VI(1,MYI0),GPUACC(1,MYI0),GPUJRK(1,MYI0),
+     &                        GPUPHI(MYI0),LMAX,NBMAX,LISTGP(1,MYI0))
+          END IF
+          IF (NRANKS.GT.1) THEN
+              CALL NBODY_REGF_GATHER(NI,GPUACC,GPUJRK,GPUPHI,LISTGP,
+     &                               LMAX)
+          END IF
 *       Copy neighbour lists from the GPU after overflow check.
           DO 54 LL = 1,NI
               I = IREG(JNEXT + LL)
@@ -713,6 +729,8 @@
 *       Close GPU & GPUIRR library and stop.
       CALL GPUNB_CLOSE
       CALL GPUIRR_CLOSE
+*       Path B: tear down internal MPI (no-op in serial / AMUSE builds).
+      CALL NBODY_MPI_FINALIZE
       STOP
 *
   100 RETURN

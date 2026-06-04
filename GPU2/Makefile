@@ -119,28 +119,28 @@ $(BUILD):
 $(RUNDIR):
 	mkdir -p $(RUNDIR)
 
-gpu: gpunb.gpu.o gpupot.gpu.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | $(BUILD) $(RUNDIR)
+gpu: gpunb.gpu.o gpupot.gpu.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o mpi_nbody_stub.o | $(BUILD) $(RUNDIR)
 	cp -f gpunb.gpu.o gpunb.o
 	cp -f gpupot.gpu.o gpupot.o
 	cp -f *.o ./$(BUILD)
 	make gpu -C ./$(BUILD) -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC) CUDA_PATH=$(CUDA_PATH)
 	mv -f ./$(BUILD)/nbody6 $(RUNDIR)/$(BINNAME).gpu
 
-avx: gpunb.avx.o gpupot.avx.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | $(BUILD) $(RUNDIR)
+avx: gpunb.avx.o gpupot.avx.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o mpi_nbody_stub.o | $(BUILD) $(RUNDIR)
 	cp -f gpunb.avx.o gpunb.o
 	cp -f gpupot.avx.o gpupot.o
 	cp -f *.o ./$(BUILD)
 	make sse -C ./$(BUILD) -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
 	mv -f ./$(BUILD)/nbody6 $(RUNDIR)/$(BINNAME).avx
 
-sse: gpunb.sse.o gpupot.sse.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | $(BUILD) $(RUNDIR)
+sse: gpunb.sse.o gpupot.sse.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o mpi_nbody_stub.o | $(BUILD) $(RUNDIR)
 	cp -f gpunb.sse.o gpunb.o
 	cp -f gpupot.sse.o gpupot.o
 	cp -f *.o ./$(BUILD)
 	make sse -C ./$(BUILD) -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
 	mv -f ./$(BUILD)/nbody6 $(RUNDIR)/$(BINNAME).sse
 
-cpu: gpunb.cpu.o gpupot.cpu.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.cpu.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | $(BUILD) $(RUNDIR)
+cpu: gpunb.cpu.o gpupot.cpu.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.cpu.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o mpi_nbody_stub.o | $(BUILD) $(RUNDIR)
 	cp -f gpunb.cpu.o gpunb.o
 	cp -f gpupot.cpu.o gpupot.o
 	cp -p cnbint6.o cnbint.o
@@ -173,7 +173,7 @@ mpi-cpu: gpunb.cpu.o gpupot.cpu.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o s
 # which archives the resulting Build/*.o into libnbody7.a and supplies
 # its own main. Keeps the AMUSE path independent of platform-specific
 # C++ stdlib / system-SDK linker quirks (e.g. -lstdc++ vs -lc++).
-cpu-objects: gpunb.cpu.o gpupot.cpu.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.cpu.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | $(BUILD)
+cpu-objects: gpunb.cpu.o gpupot.cpu.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.cpu.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o mpi_nbody_stub.o | $(BUILD)
 	cp -f gpunb.cpu.o gpunb.o
 	cp -f gpupot.cpu.o gpupot.o
 	cp -p cnbint6.o cnbint.o
@@ -187,25 +187,25 @@ cpu-objects: gpunb.cpu.o gpupot.cpu.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint
 # the resulting Build_<variant>/*.o into libnbody7_<variant>.a and
 # supply their own main via interface.f90. Stage-2 reuses the existing
 # cpu-objects target (variant-agnostic: same OBJECTS list, no link).
-sse-objects: gpunb.sse.o gpupot.sse.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | $(BUILD)
+sse-objects: gpunb.sse.o gpupot.sse.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o mpi_nbody_stub.o | $(BUILD)
 	cp -f gpunb.sse.o gpunb.o
 	cp -f gpupot.sse.o gpupot.o
 	cp -f *.o ./$(BUILD)
 	make cpu-objects -C ./$(BUILD) -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
 
-avx-objects: gpunb.avx.o gpupot.avx.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | $(BUILD)
+avx-objects: gpunb.avx.o gpupot.avx.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o mpi_nbody_stub.o | $(BUILD)
 	cp -f gpunb.avx.o gpunb.o
 	cp -f gpupot.avx.o gpupot.o
 	cp -f *.o ./$(BUILD)
 	make cpu-objects -C ./$(BUILD) -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC)
 
-gpu-objects: gpunb.gpu.o gpupot.gpu.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | $(BUILD)
+gpu-objects: gpunb.gpu.o gpupot.gpu.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o mpi_nbody_stub.o | $(BUILD)
 	cp -f gpunb.gpu.o gpunb.o
 	cp -f gpupot.gpu.o gpupot.o
 	cp -f *.o ./$(BUILD)
 	make cpu-objects -C ./$(BUILD) -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC) CUDA_PATH=$(CUDA_PATH)
 
-metal: gpunb.metallib gpunb.metal.o gpupot.metallib gpupot.metal.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.cpu.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o | $(BUILD) $(RUNDIR)
+metal: gpunb.metallib gpunb.metal.o gpupot.metallib gpupot.metal.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.cpu.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o mpi_nbody_stub.o | $(BUILD) $(RUNDIR)
 	cp -f gpunb.metal.o gpunb.o
 	cp -f gpupot.metal.o gpupot.o
 	cp -p cnbint6.o cnbint.o
@@ -252,13 +252,21 @@ start.o: start.f
 	$(FC) $(FFLAGS) -fopenmp $^ -c -o $@
 
 # Path B MPI wrapper + standalone MPI driver. Compiled with mpif90 so
-# mpif.h / MPI_* symbols resolve; the stub counterpart (mpi_nbody_stub.f,
-# used by serial builds in increment 2) compiles with plain $(FC).
+# mpif.h / MPI_* symbols resolve. The no-op stub counterpart
+# (mpi_nbody_stub.f) compiles with plain $(FC) and links into every serial /
+# AMUSE build so the wrapper calls added to the shared intgrt.omp.f resolve
+# there (NRANKS=1 -> original serial path).
+# -fallow-argument-mismatch: MPI_ALLGATHERV is called with both REAL*8 and
+# INTEGER buffers (legal in the F77 mpif.h interface); gfortran 10+ treats
+# the differing actual-argument types as an error without this flag.
 mpi_nbody.o: mpi_nbody.f
-	$(MPIFC) $(FFLAGS) $^ -c -o $@
+	$(MPIFC) $(FFLAGS) -fallow-argument-mismatch $^ -c -o $@
 
 nbody6_main_mpi.o: nbody6_main_mpi.f
 	$(MPIFC) $(FFLAGS) $^ -c -o $@
+
+mpi_nbody_stub.o: mpi_nbody_stub.f
+	$(FC) $(FFLAGS) $^ -c -o $@
 
 gpunb.gpu.o: lib/gpunb.velocity.cu
 	$(NVCC) $^ -c -o $@

@@ -183,6 +183,19 @@
 *     call flush(6)
 *
 *       Initialize force polynomials and time-steps (standard way).
+*
+*       NB (OpenMP/MPI determinism, 2026-06-04): this FPOLY2 loop is kept
+*       PARALLEL on purpose -- a serial initialisation is impractically
+*       slow to start up at large N.  Caveat: with an EXTERNAL FIELD
+*       (KZ(14) > 0) the XTRNLD/XTRNLF derivative chain called inside
+*       FPOLY2 is not thread-safe, so the initial time-steps -- and hence
+*       the whole run -- are NOT bit-reproducible across OpenMP thread
+*       counts (OMP_NUM_THREADS).  This is the sole source of OMP=1 vs
+*       OMP=N drift; the per-block regular/irregular force kernels and the
+*       corrector are all thread-deterministic.  Single-thread and
+*       pure-MPI runs (OMP_NUM_THREADS=1) are unaffected.  For strict
+*       cross-thread reproducibility WITH an external field, serialise
+*       this one loop (drop the !$omp directive) and accept slower start-up.
 !$omp parallel do private(I)
       DO 55 I=IFIRST,NTOT
           CALL FPOLY2(I,I,0)
