@@ -390,7 +390,24 @@
 *         I = NXTLST(II)
 *         CALL GPUIRR_FIRR(I,GF(1,II),GFD(1,II))
 *  46 CONTINUE
-      CALL GPUIRR_FIRR_VEC(NXTLEN,NXTLST,GF,GFD)
+*       Path B (internal MPI, increment 3): split the irregular-force
+*       evaluation across ranks. Each rank evaluates GPUIRR_FIRR_VEC only for
+*       its contiguous sub-range [MYL0 .. MYL0+MYLEN-1] of the NXTLEN block
+*       members (every rank holds the full, identical j-particle state in its
+*       GPUIRR library, so any rank can compute any i-particle's force); the
+*       results GF/GFD are then Allgathered so every rank holds the full block
+*       before the replicated NBINT/NBINTP correction. NBODY_REGF_RANGE is the
+*       generic static contiguous split (shared with the regular phase). On a
+*       single rank MYL0=1, MYLEN=NXTLEN and this is the original serial call;
+*       NRANKS=1 also skips the gather -> byte-identical serial behaviour.
+      CALL NBODY_REGF_RANGE(NXTLEN,MYL0,MYLEN)
+      IF (MYLEN.GT.0) THEN
+          CALL GPUIRR_FIRR_VEC(MYLEN,NXTLST(MYL0),GF(1,MYL0),
+     &                         GFD(1,MYL0))
+      END IF
+      IF (NRANKS.GT.1) THEN
+          CALL NBODY_IRRF_GATHER(NXTLEN,GF,GFD)
+      END IF
 *
 *       Choose between standard and parallel irregular integration.
       IF (NXTLEN.LE.NPMAX) THEN

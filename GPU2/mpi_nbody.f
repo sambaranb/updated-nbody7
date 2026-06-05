@@ -156,3 +156,51 @@
 *
       RETURN
       END
+*
+************************************************************************
+      SUBROUTINE NBODY_IRRF_GATHER(NLEN,GF,GFD)
+*
+*       Path B (increment 3): Allgather the irregular-force results each rank
+*       computed for its contiguous sub-range of the NLEN block members, so
+*       every rank holds the full GF/GFD before the replicated NBINT/NBINTP
+*       correction. Mirrors NBODY_REGF_GATHER but only two (3,*) arrays
+*       (force + first derivative) and no potential / neighbour list. The
+*       per-rank counts/displacements use the SAME static contiguous split as
+*       NBODY_REGF_RANGE, so the slice the caller filled sits at its own
+*       displacement and MPI_IN_PLACE fills in the other ranks' slices.
+      INCLUDE 'mpi_nbody.h'
+      INCLUDE 'mpif.h'
+      INTEGER  NLEN
+      REAL*8   GF(3,*),GFD(3,*)
+      INTEGER  MAXR
+      PARAMETER (MAXR=4096)
+      INTEGER  C3(MAXR),D3(MAXR)
+      INTEGER  R,IBASE,IREM,JLOC,J0,IERR
+*
+      IF (NRANKS.GT.MAXR) THEN
+          WRITE (6,*) 'NBODY_IRRF_GATHER: NRANKS exceeds MAXR', NRANKS
+          CALL ABORT
+      END IF
+      IBASE = NLEN/NRANKS
+      IREM  = MOD(NLEN,NRANKS)
+      DO 10 R = 1,NRANKS
+*       0-based rank index (R-1); mirror the split in NBODY_REGF_RANGE.
+          IF (R-1.LT.IREM) THEN
+              JLOC = IBASE + 1
+              J0   = (R-1)*(IBASE+1)
+          ELSE
+              JLOC = IBASE
+              J0   = IREM*(IBASE+1) + (R-1-IREM)*IBASE
+          END IF
+          C3(R) = 3*JLOC
+          D3(R) = 3*J0
+   10 CONTINUE
+*
+*       Irregular force and its first derivative (3 components/member).
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GF,C3,D3,MPI_DOUBLE_PRECISION,NBODY_COMM,IERR)
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GFD,C3,D3,MPI_DOUBLE_PRECISION,NBODY_COMM,IERR)
+*
+      RETURN
+      END

@@ -273,3 +273,32 @@ Linux (`uname` switch in `LDMPI_OPT`).
 Increment 2 (next) edits the shared `intgrt.omp.f` (decomposition behind `IF(NRANKS.GT.1)`)
 and at that point wires `mpi_nbody_stub.o` into the serial + `*-objects` builds so the
 shared file's wrapper calls resolve everywhere.
+
+---
+
+## 10. Increment 2 + 3 status — DONE, bit-identical (regular + irregular force)
+
+**Increment 2 — regular force (commit `bfedf67`).** `NBODY_REGF_RANGE` (static
+contiguous split of the `NI` regular-due block) + `NBODY_REGF_GATHER` (4×
+`MPI_ALLGATHERV`: acc/jerk/phi + neighbour lists) in `mpi_nbody.f`; `intgrt.omp.f`
+runs `GPUNB_REGF` per-rank slice → Allgather → replicated `GPUCOR`.
+
+**Increment 3 — irregular force (2026-06-05).** The §1 step-3 block-wide
+irregular force `GPUIRR_FIRR_VEC(NXTLEN,NXTLST,GF,GFD)` (line ~393) is now split
+the same way: each rank evaluates its contiguous slice of the `NXTLEN` block,
+`NBODY_IRRF_GATHER` Allgathers the two `(3,*)` arrays `GF`/`GFD`, then the
+replicated `NBINT`/`NBINTP` correction runs on identical inputs. The range split
+reuses the generic `NBODY_REGF_RANGE`; the gather mirrors `NBODY_REGF_GATHER` but
+with only force + first derivative (no potential / neighbour list — the
+irregular phase doesn't rebuild lists). Every rank holds the full, identical
+GPUIRR j-particle state (the `GPUIRR_SET_JP`/`PRED_*` calls stay replicated), so
+any rank can evaluate any i-particle's irregular force. The secondary
+`GPUIRR_FIRR_VEC` inside the regular block (line ~543) stays replicated — it is
+part of the replicated `GPUCOR` correction, not a separate decomposition target.
+
+**Acceptance (both increments, pure-MPI `OMP_NUM_THREADS=1`).** On the 13049-body
+BSE run (`standalone_version/test_cpu_with_bse`), `mpi_design/poc_validation/run_equiv.sh`
+gives **serial cpu == mpi np=1 == np=2 == np=4**, bit-identical ADJUST + END RUN
+diagnostics, all ranks reaching END RUN. Caveat unchanged: bit-identicality is a
+pure-MPI (one OpenMP thread/rank) guarantee; hybrid MPI+OpenMP inherits the
+`start.f` FPOLY2 external-field non-determinism documented at `GPU2/start.f:185`.

@@ -50,6 +50,16 @@
       END
 *
 ************************************************************************
+      SUBROUTINE NBODY_IRRF_GATHER(NLEN,GF,GFD)
+*
+*       Serial stub: never reached (caller guards with NRANKS.GT.1). Present
+*       only so the shared intgrt.omp.f links in serial / AMUSE builds.
+      INTEGER  NLEN
+      REAL*8   GF(3,*),GFD(3,*)
+      RETURN
+      END
+*
+************************************************************************
       BLOCK DATA NBODY_MPI_BD
 *
 *       Default /MPICOMM/ for serial / AMUSE builds: a single rank, so the
