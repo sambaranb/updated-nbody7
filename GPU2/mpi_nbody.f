@@ -323,3 +323,73 @@
 *
       RETURN
       END
+*
+************************************************************************
+      SUBROUTINE NBODY_FPOLY0_GATHER(NSTART,NEND,GFR,GD1R,GFI,GD1,
+     &     GRS,GLIST,LMX)
+*
+*       Path B (increment 4b): Allgather the per-particle quantities the
+*       FPOLY0 initial force/neighbour build writes, over [NSTART .. NEND], so
+*       all ranks hold identical state before the replicated XTRNLD + F/FDOT
+*       assembly. Each rank filled only its own [MYP0,MYP0+MYNP-1] slice in
+*       place in the global arrays, so MPI_IN_PLACE leaves that slice and fills
+*       in the others. Counts/displacements use the SAME static contiguous
+*       split as NBODY_REGF_RANGE(NFI,...), shifted by the NSTART-1 base offset.
+*
+*       Four (3,*) arrays : FR,D1R (regular force+derivative, GPUNB_REGF) and
+*                           FI,D1 (irregular force+derivative, GPUIRR_FIRR_VEC).
+*       One  (1,*) array  : RS (neighbour radius; overflow may have adjusted it).
+*       One (LMX,*) array : LIST (integer neighbour lists, fixed column stride).
+      INCLUDE 'mpi_nbody.h'
+      INCLUDE 'mpif.h'
+      INTEGER  NSTART,NEND,LMX
+      REAL*8   GFR(3,*),GD1R(3,*),GFI(3,*),GD1(3,*),GRS(*)
+      INTEGER  GLIST(LMX,*)
+      INTEGER  MAXR
+      PARAMETER (MAXR=4096)
+      INTEGER  C3(MAXR),D3(MAXR),C1(MAXR),D1(MAXR),CL(MAXR),DL(MAXR)
+      INTEGER  R,NI,IBASE,IREM,JLOC,J0,IBAS,IERR
+*
+      IF (NRANKS.GT.MAXR) THEN
+          WRITE (6,*) 'NBODY_FPOLY0_GATHER: NRANKS exceeds MAXR', NRANKS
+          CALL ABORT
+      END IF
+      NI    = NEND - NSTART + 1
+      IBASE = NI/NRANKS
+      IREM  = MOD(NI,NRANKS)
+      IBAS  = NSTART - 1
+      DO 10 R = 1,NRANKS
+*       0-based rank index (R-1); mirror NBODY_REGF_RANGE, then shift by NSTART.
+          IF (R-1.LT.IREM) THEN
+              JLOC = IBASE + 1
+              J0   = IBAS + (R-1)*(IBASE+1)
+          ELSE
+              JLOC = IBASE
+              J0   = IBAS + IREM*(IBASE+1) + (R-1-IREM)*IBASE
+          END IF
+          C3(R) = 3*JLOC
+          D3(R) = 3*J0
+          C1(R) = JLOC
+          D1(R) = J0
+          CL(R) = LMX*JLOC
+          DL(R) = LMX*J0
+   10 CONTINUE
+*
+*       Regular & irregular force and first derivative (3 components/member).
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GFR,C3,D3,MPI_DOUBLE_PRECISION,NBODY_COMM,IERR)
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GD1R,C3,D3,MPI_DOUBLE_PRECISION,NBODY_COMM,IERR)
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GFI,C3,D3,MPI_DOUBLE_PRECISION,NBODY_COMM,IERR)
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GD1,C3,D3,MPI_DOUBLE_PRECISION,NBODY_COMM,IERR)
+*
+*       Neighbour radius (1/member); neighbour lists (LMX integers/member).
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GRS,C1,D1,MPI_DOUBLE_PRECISION,NBODY_COMM,IERR)
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GLIST,CL,DL,MPI_INTEGER,NBODY_COMM,IERR)
+*
+      RETURN
+      END

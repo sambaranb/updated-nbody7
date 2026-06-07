@@ -1,0 +1,71 @@
+================================================================================
+PATH 1b increment 4b: MPI-parallelise the O(N^2) FPOLY0 initial force build
+================================================================================
+Date     : 2026-06-07
+Branch   : mpi-parallel
+Binary   : GPU2/run_versions/nbody7b.mpi-cpu  (pure-MPI, OMP_NUM_THREADS=1)
+Harness  : mpi_design/poc_validation/scale_split.py  (min-of-2, np={1,2,4,8})
+Inputs   : input_gen_N13049_eq , input_gen_N50000_eq  (equal-mass generated Plummer)
+
+WHAT CHANGED  (builds on increment 4 = FPOLY2 startup, commit bf84510)
+  GPU2/fpoly0.f        : the one-shot initial force/neighbour build (the
+                         NIMAX-block loop calling GPUNB_REGF + GPUIRR_FIRR_VEC
+                         over all IFIRST..NTOT) is now MPI-split. FPOLY0 is
+                         EMBARRASSINGLY PARALLEL in the particle index -- each
+                         particle's force depends only on the fully-replicated
+                         j-particle state (GPUNB_SEND / GPUIRR_SET_JP send ALL
+                         particles on every rank) with NO cross-particle
+                         ordering (unlike FPOLY2's STEPS F/FDOT scaling). So
+                         each rank runs the block loop over its own contiguous
+                         slice [MYP0..MYP0+MYNP-1] (via the existing
+                         NBODY_REGF_RANGE) and the per-particle results are
+                         Allgathered. The replicated XTRNLD + F/FDOT/D0/D0R/
+                         FIDOT/FRDOT assembly that follows runs on identical
+                         gathered inputs. NRANKS=1 -> original serial loop.
+  GPU2/mpi_nbody.f     : + NBODY_FPOLY0_GATHER (6 Allgatherv).
+  GPU2/mpi_nbody_stub.f: + no-op stub (serial / AMUSE builds unchanged).
+
+GATHER SET (per particle, over [IFIRST,NTOT]):
+  FR,D1R (regular force+deriv), FI,D1 (irregular force+deriv)  -- (3,*)
+  RS (neighbour radius; the overflow branch may adjust it per particle) -- (1,*)
+  LIST (integer neighbour lists, LMAX column stride)           -- (LMAX,*)
+  (F,FDOT,D0,D0R,FIDOT,FRDOT are formed replicated AFTER the gather from these.)
+
+KEY RESULT: bit-identical to single-rank serial np=1/2/4/8 at both N, and the
+O(N^2) FPOLY0 startup -- the dominant remaining startup floor after FPOLY2 --
+now parallelises, taking raw in-code wall close to the integration ceiling.
+
+--------------------------------------------------------------------------------
+N = 13049
+--------------------------------------------------------------------------------
+ np   ext_s  startup  integ_s  integ_sp  integ_p  tot_sp  END
+  1    60.6        3       56     1.00x      nan   1.00x  yes
+  2    36.5        2       33     1.70x    0.821   1.69x  yes
+  4    23.5        2       20     2.80x    0.857   2.68x  yes
+  8    17.5        1       15     3.73x    0.837   3.69x  yes
+  bit-identity across np [1,2,4,8]: PASS
+
+--------------------------------------------------------------------------------
+N = 50000   (the decisive point -- startup was the 31s FPOLY2-only floor)
+--------------------------------------------------------------------------------
+ np   ext_s  startup  integ_s  integ_sp  integ_p  tot_sp  END
+  1    97.9       38       58     1.00x      nan   1.00x  yes
+  2    59.2       23       34     1.71x    0.828   1.68x  yes
+  4    39.3       16       21     2.76x    0.851   2.59x  yes
+  8    30.6       12       16     3.62x    0.828   3.43x  yes
+  bit-identity across np [1,2,4,8]: PASS
+
+STARTUP PROGRESSION at N=50000, np8 (each step removes one O(N^2) serial piece):
+  pre-startup-decomp (HEAD pre-bf84510) : 43s  (ROSE with np; replicated FPOLY0+FPOLY2)
+  + FPOLY2 decomposed (bf84510)         : 31s  (FPOLY2 share removed; FPOLY0 floor)
+  + FPOLY0 decomposed (this increment)  : 12s  (38->12 = 3.2x; ~78% parallel)
+RAW in-code wall np8 speedup at N=50000: 1.66x -> 2.04x (FPOLY2) -> 3.43x (FPOLY0),
+now near the integration-only ceiling (3.62x). Integration speedup unchanged
+(np8 3.62-3.73x, p~0.83-0.85) -- the integration path is untouched.
+
+REMAINING ~12s startup floor at np8 = the still-serial parts of START outside the
+two force builds: INPUT/DATA/SCALE (IC generation), GPUNB_OPEN/SEND + GPUIRR setup
+(replicated by design -- every rank needs the full j-state), KSPINIT, and the
+replicated XTRNLD/assembly post-loops. These are O(N) or setup-bound, not O(N^2),
+so the dominant large-N startup cost is now addressed. Further trimming (rank-0
+I/O, overlap) is lower-yield -- see the integration-serial-trim lever (Path 2).

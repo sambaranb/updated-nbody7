@@ -5,6 +5,7 @@
 *       -------------------------------------------------
 *
       INCLUDE 'common6.h'
+      INCLUDE 'mpi_nbody.h'
       PARAMETER (NIMAX=1024)
       REAL*8   H2I(NIMAX),GPUACC(3,NIMAX),GPUJRK(3,NIMAX),GPUPHI(NIMAX),
      &         GF(3,NIMAX),GFD(3,NIMAX),DTR(NIMAX)
@@ -56,12 +57,24 @@
 *
 *       Define maximum GPU neighbour number and initialize counters.
       NBMAX = MIN(NNBMAX + 150,LMAX-5)
-      JNEXT = 0
+*
+*       Path B (internal MPI, increment 4b): split this one-shot O(N^2) initial
+*       force/neighbour build over ranks. FPOLY0 is embarrassingly parallel in
+*       the particle index -- each particle's regular+irregular force depends
+*       only on the fully-replicated j-particle state (GPUNB_SEND / the
+*       GPUIRR_SET_JP loop above send ALL particles on EVERY rank), with no
+*       cross-particle ordering (unlike the FPOLY2 start-up loop). So each rank
+*       runs the block loop over its own contiguous slice [MYP0..MYP0+MYNP-1] of
+*       the NFI members and the per-particle results are Allgathered afterwards.
+*       NRANKS=1 -> MYP0=1, MYNP=NFI -> the original full serial loop, unchanged.
+      CALL NBODY_REGF_RANGE(NFI,MYP0,MYNP)
+      JNEXT = MYP0 - 1
+      JLAST = MYP0 - 1 + MYNP
       NOFL2 = 0
 *
-*       Loop over all particles split into NIMAX blocks.
-      DO 100 II = IFIRST,NTOT,NIMAX
-   20     NI = MIN(NFI-JNEXT,NIMAX)
+*       Loop over this rank's particles split into NIMAX blocks.
+      DO 100 II = 1,MYNP,NIMAX
+   20     NI = MIN(JLAST-JNEXT,NIMAX)
 *       Copy neighbour radius, STEPR and state vector for each block.
 !$omp parallel do private(LL, JNEXT, I, K)
           DO 30 LL = 1,NI
@@ -148,6 +161,15 @@
 *       Advance to next block (may not be used).
           JNEXT = JNEXT + NI
   100 CONTINUE
+*
+*       Path B: Allgather the per-particle results each rank built for its slice
+*       so all ranks hold identical force/neighbour state before the replicated
+*       external-force + F/FDOT assembly below. RS may have been adjusted per
+*       particle by the neighbour-overflow branch, so it is gathered too.
+      IF (NRANKS.GT.1) THEN
+          CALL NBODY_FPOLY0_GATHER(IFIRST,NTOT,FR,D1R,FI,D1,RS,
+     &                             LIST,LMAX)
+      END IF
 *
 *       Check option for external force.
       IF (KZ(14).GT.0) THEN

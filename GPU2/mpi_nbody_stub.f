@@ -83,6 +83,18 @@
       END
 *
 ************************************************************************
+      SUBROUTINE NBODY_FPOLY0_GATHER(NSTART,NEND,GFR,GD1R,GFI,GD1,
+     &     GRS,GLIST,LMX)
+*
+*       Serial stub: never reached (caller guards with NRANKS.GT.1). Present
+*       only so the shared fpoly0.f links in serial / AMUSE builds.
+      INTEGER  NSTART,NEND,LMX
+      REAL*8   GFR(3,*),GD1R(3,*),GFI(3,*),GD1(3,*),GRS(*)
+      INTEGER  GLIST(LMX,*)
+      RETURN
+      END
+*
+************************************************************************
       BLOCK DATA NBODY_MPI_BD
 *
 *       Default /MPICOMM/ for serial / AMUSE builds: a single rank, so the
