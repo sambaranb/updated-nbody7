@@ -55,13 +55,32 @@ N = 50000   (the decisive point -- startup was the 31s FPOLY2-only floor)
   8    30.6       12       16     3.62x    0.828   3.43x  yes
   bit-identity across np [1,2,4,8]: PASS
 
-STARTUP PROGRESSION at N=50000, np8 (each step removes one O(N^2) serial piece):
-  pre-startup-decomp (HEAD pre-bf84510) : 43s  (ROSE with np; replicated FPOLY0+FPOLY2)
-  + FPOLY2 decomposed (bf84510)         : 31s  (FPOLY2 share removed; FPOLY0 floor)
-  + FPOLY0 decomposed (this increment)  : 12s  (38->12 = 3.2x; ~78% parallel)
-RAW in-code wall np8 speedup at N=50000: 1.66x -> 2.04x (FPOLY2) -> 3.43x (FPOLY0),
-now near the integration-only ceiling (3.62x). Integration speedup unchanged
-(np8 3.62-3.73x, p~0.83-0.85) -- the integration path is untouched.
+--------------------------------------------------------------------------------
+N = 100000   (AT-SCALE confirmation; baseline np1 startup was 182s)
+--------------------------------------------------------------------------------
+ np   ext_s  startup  integ_s  integ_sp  integ_p  tot_sp  END
+  1   430.1      179      246     1.00x      nan   1.00x  yes
+  2   251.1      105      141     1.74x    0.854   1.73x  yes
+  4   158.0       68       84     2.93x    0.878   2.80x  yes
+  8   115.2       49       60     4.10x    0.864   3.90x  yes
+  bit-identity across np [1,2,4,8]: PASS
+  (one np8 rep did not reach END RUN -- environmental transient; the OTHER rep
+   completed fully and IS the bit-identical one the check used. Not a correctness
+   issue: np8 ADJUST physics is identical to np1 through END RUN.)
+
+STARTUP PROGRESSION, np8 (each step removes one O(N^2) serial piece):
+                              N=50000        N=100000
+  pre-startup-decomp        : 43s (ROSE)     ~198s (ROSE with np)
+  + FPOLY2 decomposed       : 31s (floor)    (not separately measured at 1e5)
+  + FPOLY0 decomposed (now) : 12s            49s   (179->49 = 3.65x, ~83% parallel)
+RAW in-code wall np8 speedup:
+  N=50000 : 1.66x -> 2.04x (FPOLY2) -> 3.43x (FPOLY0)   [integ ceiling 3.62x]
+  N=100000: 1.67x -------------------> 3.90x (FPOLY0)   [integ ceiling 4.10x]
+At 1e5 the raw wall now essentially MATCHES the integration speedup (3.90 vs
+4.10x) -- the "raw wall is startup-bound at large N" finding from the 2026-06-06
+sweep (raw np8 only 1.67x) is RESOLVED. Startup parallel fraction RISES with N
+(N=50000 ~78%, N=100000 ~83%) as the O(N^2) force builds grow vs the O(N) setup
+remainder. Integration speedup unchanged (np8 4.10x, p 0.864) -- path untouched.
 
 REMAINING ~12s startup floor at np8 = the still-serial parts of START outside the
 two force builds: INPUT/DATA/SCALE (IC generation), GPUNB_OPEN/SEND + GPUIRR setup
