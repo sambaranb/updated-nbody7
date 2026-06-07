@@ -1,0 +1,80 @@
+==== N-scaling sweep started 2026-06-06 09:48:50 ====
+######## START N13049  2026-06-06 09:48:50 ########
+LABEL=N13049  input=input_gen_N13049_eq  np=[1, 2, 4, 8]  reps=2  OMP=1
+  np1 rep0: ext=62.2s startup=3s total=61s integ=58s end=True
+  np1 rep1: ext=63.9s startup=3s total=63s integ=60s end=True
+  np2 rep0: ext=38.7s startup=4s total=37s integ=33s end=True
+  np2 rep1: ext=39.1s startup=4s total=38s integ=34s end=True
+  np4 rep0: ext=25.9s startup=4s total=24s integ=20s end=True
+  np4 rep1: ext=25.9s startup=4s total=24s integ=20s end=True
+  np8 rep0: ext=20.1s startup=4s total=19s integ=15s end=True
+  np8 rep1: ext=20.2s startup=4s total=19s integ=15s end=True
+
+==== N13049: min-of-2 ====
+ np   ext_s  startup  integ_s  integ_sp  integ_p  tot_sp  END
+  1    62.2        3       58     1.00x      nan   1.00x  yes
+  2    38.7        4       33     1.76x    0.862   1.65x  yes
+  4    25.9        4       20     2.90x    0.874   2.54x  yes
+  8    20.1        4       15     3.87x    0.847   3.21x  yes
+
+bit-identity (ADJUST physics vs np1 rank0):
+  np1: OK bit-identical
+  np2: OK bit-identical
+  np4: OK bit-identical
+  np8: OK bit-identical
+
+>>> bit-identity across np [1, 2, 4, 8]: PASS
+######## DONE  N13049  2026-06-06 09:53:46 ########
+######## START N50000  2026-06-06 09:53:46 ########
+LABEL=N50000  input=input_gen_N50000_eq  np=[1, 2, 4, 8]  reps=2  OMP=1
+  np1 rep0: ext=101.9s startup=39s total=100s integ=61s end=True
+  np1 rep1: ext=100.3s startup=39s total=98s integ=59s end=True
+  np2 rep0: ext=76.6s startup=40s total=74s integ=34s end=True
+  np2 rep1: ext=76.7s startup=40s total=74s integ=34s end=True
+  np4 rep0: ext=64.7s startup=41s total=62s integ=21s end=True
+  np4 rep1: ext=64.9s startup=41s total=62s integ=21s end=True
+  np8 rep0: ext=62.7s startup=44s total=60s integ=16s end=True
+  np8 rep1: ext=61.6s startup=43s total=59s integ=16s end=True
+
+==== N50000: min-of-2 ====
+ np   ext_s  startup  integ_s  integ_sp  integ_p  tot_sp  END
+  1   100.3       39       59     1.00x      nan   1.00x  yes
+  2    76.6       40       34     1.74x    0.847   1.32x  yes
+  4    64.7       41       21     2.81x    0.859   1.58x  yes
+  8    61.6       43       16     3.69x    0.833   1.66x  yes
+
+bit-identity (ADJUST physics vs np1 rank0):
+  np1: OK bit-identical
+  np2: OK bit-identical
+  np4: OK bit-identical
+  np8: OK bit-identical
+
+>>> bit-identity across np [1, 2, 4, 8]: PASS
+######## DONE  N50000  2026-06-06 10:03:56 ########
+######## START N100000  2026-06-06 10:03:56 ########
+LABEL=N100000  input=input_gen_N100000_eq  np=[1, 2, 4, 8]  reps=2  OMP=1
+  np1 rep0: ext=436.8s startup=182s total=432s integ=250s end=True
+  np1 rep1: ext=442.2s startup=182s total=437s integ=255s end=True
+  np2 rep0: ext=336.4s startup=188s total=331s integ=143s end=True
+  np2 rep1: ext=336.6s startup=188s total=331s integ=143s end=True
+  np4 rep0: ext=286.5s startup=195s total=281s integ=86s end=True
+  np4 rep1: ext=287.9s startup=197s total=282s integ=85s end=True
+  np8 rep0: ext=276.9s startup=210s total=271s integ=61s end=True
+  np8 rep1: ext=265.3s startup=198s total=259s integ=61s end=True
+
+==== N100000: min-of-2 ====
+ np   ext_s  startup  integ_s  integ_sp  integ_p  tot_sp  END
+  1   436.8      182      250     1.00x      nan   1.00x  yes
+  2   336.4      188      143     1.75x    0.856   1.31x  yes
+  4   286.5      195       86     2.91x    0.875   1.54x  yes
+  8   265.3      198       61     4.10x    0.864   1.67x  yes
+
+bit-identity (ADJUST physics vs np1 rank0):
+  np1: OK bit-identical
+  np2: OK bit-identical
+  np4: OK bit-identical
+  np8: OK bit-identical
+
+>>> bit-identity across np [1, 2, 4, 8]: PASS
+######## DONE  N100000  2026-06-06 10:48:25 ########
+==== ALL THREE SWEEPS COMPLETE 2026-06-06 10:48:25 ====
