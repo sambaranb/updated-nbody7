@@ -1,0 +1,61 @@
+================================================================================
+PATH 1 increment 4: MPI-parallelise the O(N^2) FPOLY2 start-up loop (start.f)
+================================================================================
+Date     : 2026-06-07
+Branch   : mpi-parallel
+Binary   : GPU2/run_versions/nbody7b.mpi-cpu  (pure-MPI, OMP_NUM_THREADS=1)
+Harness  : mpi_design/poc_validation/scale_split.py  (min-of-2, np={1,2,4,8})
+Inputs   : input_gen_N13049_eq , input_gen_N50000_eq  (equal-mass generated Plummer)
+
+WHAT CHANGED
+  GPU2/start.f         : the per-particle FPOLY2(I,I,0) start-up loop over
+                         [IFIRST,NTOT] is now split across MPI ranks. The loop
+                         is order-dependent ONLY through STEPS scaling
+                         F->0.5F and FDOT->ONE6*FDOT (read by later particles'
+                         derivative sum); each rank reproduces the exact serial
+                         F/FDOT state for its block by pre-applying that scaling
+                         to all particles BELOW its block, then integrates its
+                         block in ascending order. Per-particle results
+                         (F,FDOT,X0,D2,D3,D2R,D3R,T0,T0R,STEP,STEPR,TNEW) are
+                         Allgathered. NRANKS=1 -> original serial/OpenMP loop.
+  GPU2/mpi_nbody.f     : + NBODY_FPOLY_RANGE (static contiguous block split,
+                         NSTART..NEND), NBODY_FPOLY_GATHER (12 Allgatherv).
+  GPU2/mpi_nbody_stub.f: + no-op stubs (serial / AMUSE builds unchanged).
+
+KEY RESULT: bit-identical to single-rank serial for np=1/2/4/8 at both N, and
+the formerly serial FPOLY2 share of start-up now parallelises.
+
+--------------------------------------------------------------------------------
+N = 13049  (start-up dominated by O(N) work; FPOLY2 share is tiny here)
+--------------------------------------------------------------------------------
+ np   ext_s  startup  integ_s  integ_sp  integ_p  tot_sp  END
+  1    60.8        3       56     1.00x      nan   1.00x  yes
+  2    37.6        3       33     1.70x    0.821   1.64x  yes
+  4    24.8        3       20     2.80x    0.857   2.57x  yes
+  8    19.2        3       15     3.73x    0.837   3.28x  yes
+  bit-identity across np [1,2,4,8]: PASS
+
+--------------------------------------------------------------------------------
+N = 50000  (start-up O(N^2); FPOLY2 vs FPOLY0 split now visible)
+--------------------------------------------------------------------------------
+ np   ext_s  startup  integ_s  integ_sp  integ_p  tot_sp  END
+  1    98.5       38       58     1.00x      nan   1.00x  yes
+  2    69.4       33       34     1.71x    0.828   1.43x  yes
+  4    54.9       31       21     2.76x    0.851   1.85x  yes
+  8    50.2       31       16     3.62x    0.828   2.04x  yes
+  bit-identity across np [1,2,4,8]: PASS
+
+INTERPRETATION
+  * Integration-only speedup unchanged vs the pre-change baseline
+    (np8 3.62-3.73x, p~0.83-0.85) -> the force-decomposition integration path
+    is untouched, as intended.
+  * start-up at N=50000: 38s (np1) -> 31s (np8), and it now FALLS with np.
+    The pre-change baseline (results_N_scaling_2026-06-06.log) had start-up
+    RISING to 43-44s at np8 from replicated FPOLY2 + overhead. Raw in-code
+    wall np8 speedup improved 1.66x -> 2.04x at N=50000 purely from this.
+  * The ~31s plateau at np>=4 is the SERIAL remainder of start-up: FPOLY0
+    (the one-shot GPUNB_REGF + GPUIRR_FIRR_VEC initial force/neighbour build,
+    O(N^2), still replicated on every rank). FPOLY2 was only ~9s of the 38s.
+    => NEXT TARGET (PATH 1b): MPI-decompose FPOLY0 with the SAME existing
+       NBODY_REGF_RANGE/GATHER + NBODY_IRRF_GATHER wrappers it already calls
+       in intgrt.omp.f. That removes the dominant remaining start-up floor.

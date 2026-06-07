@@ -5,6 +5,7 @@
 *       ------------------------------------
 *
       INCLUDE 'common6.h'
+      INCLUDE 'mpi_nbody.h'
       EXTERNAL SCALE,MERGE
       PARAMETER  (NS=12)
 *
@@ -196,11 +197,41 @@
 *       pure-MPI runs (OMP_NUM_THREADS=1) are unaffected.  For strict
 *       cross-thread reproducibility WITH an external field, serialise
 *       this one loop (drop the !$omp directive) and accept slower start-up.
+*
+*       Path B (internal MPI, increment 4): split this O(N^2) start-up loop
+*       over ranks. The per-particle form FPOLY2(I,I,0) is order-dependent
+*       ONLY through STEPS, which scales F(K,I) -> 0.5*F(K,I) and
+*       FDOT(K,I) -> ONE6*FDOT(K,I) at the end of each call; later particles'
+*       derivative sum reads those F/FDOT values, so a particle's result
+*       depends on F/FDOT of all LOWER-ID particles already being scaled.
+*       (Nothing else couples the iterations: D2..D3R are per-I, and the
+*       T0/T0R reads are gated out at TIME=0.) Each rank reproduces the exact
+*       serial F/FDOT state for its contiguous block [IFPLO,IFPHI] by
+*       pre-applying that same scaling to every particle BELOW its block,
+*       then running the block in ascending order; the full per-particle
+*       results are Allgathered so all ranks hold identical arrays. On a
+*       single rank IFPLO=IFIRST, IFPHI=NTOT, the pre-pass and gather are
+*       skipped, and this is exactly the original serial/OpenMP loop.
+      CALL NBODY_FPOLY_RANGE(IFIRST,NTOT,IFPLO,IFPHI)
+      IF (NRANKS.GT.1) THEN
+*       Stage F/FDOT as the serial loop would have left them just before this
+*       rank's first block member (the cumulative STEPS scaling of lower IDs).
+          DO 53 J = IFIRST,IFPLO-1
+              DO 52 K = 1,3
+                  F(K,J) = 0.5D0*F(K,J)
+                  FDOT(K,J) = ONE6*FDOT(K,J)
+   52         CONTINUE
+   53     CONTINUE
+      END IF
 !$omp parallel do private(I)
-      DO 55 I=IFIRST,NTOT
+      DO 55 I=IFPLO,IFPHI
           CALL FPOLY2(I,I,0)
    55 ENDDO
 !$omp end parallel do
+      IF (NRANKS.GT.1) THEN
+          CALL NBODY_FPOLY_GATHER(IFIRST,NTOT,F,FDOT,X0,D2,D3,D2R,D3R,
+     &                            T0,T0R,STEP,STEPR,TNEW)
+      END IF
 *     write(6,*) "Start: HELLO2!!"
 *     call flush(6)
 *

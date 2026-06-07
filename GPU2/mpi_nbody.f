@@ -204,3 +204,122 @@
 *
       RETURN
       END
+*
+************************************************************************
+      SUBROUTINE NBODY_FPOLY_RANGE(NSTART,NEND,ILOW,IHIGH)
+*
+*       Path B (increment 4): this rank's contiguous sub-range
+*       [ILOW .. IHIGH] of the FPOLY2 start-up loop range [NSTART .. NEND]
+*       (actual particle indices, static block distribution -- the SAME split
+*       as NBODY_REGF_RANGE, shifted by the NSTART-1 base offset). Each rank
+*       runs FPOLY2(I,I,0) only for I in [ILOW,IHIGH]. Single rank (NRANKS=1):
+*       ILOW=NSTART, IHIGH=NEND -> the original full-range serial loop. An
+*       empty slice (NI < NRANKS) gives IHIGH < ILOW, so the caller's DO loop
+*       executes zero times.
+      INCLUDE 'mpi_nbody.h'
+      INTEGER  NSTART,NEND,ILOW,IHIGH,NI,IBASE,IREM,NLOC,IOFF
+*
+      IF (NRANKS.LE.1) THEN
+          ILOW  = NSTART
+          IHIGH = NEND
+          RETURN
+      END IF
+      NI    = NEND - NSTART + 1
+      IBASE = NI/NRANKS
+      IREM  = MOD(NI,NRANKS)
+*       Ranks 0..IREM-1 take IBASE+1 members each; the rest take IBASE.
+      IF (MYRANK.LT.IREM) THEN
+          NLOC = IBASE + 1
+          IOFF = MYRANK*(IBASE+1)
+      ELSE
+          NLOC = IBASE
+          IOFF = IREM*(IBASE+1) + (MYRANK-IREM)*IBASE
+      END IF
+      ILOW  = NSTART + IOFF
+      IHIGH = ILOW + NLOC - 1
+*
+      RETURN
+      END
+*
+************************************************************************
+      SUBROUTINE NBODY_FPOLY_GATHER(NSTART,NEND,GF,GFD,GX0,
+     &     GD2,GD3,GD2R,GD3R,GT0,GT0R,GSTEP,GSTEPR,GTNEW)
+*
+*       Path B (increment 4): Allgather every per-particle quantity the
+*       FPOLY2 start-up loop writes, over the range [NSTART .. NEND], so all
+*       ranks hold identical arrays before the integration begins. Each rank
+*       computed FPOLY2 only for its own [ILOW,IHIGH] slice (filled in place
+*       in the global arrays at those indices), so MPI_IN_PLACE leaves that
+*       slice and fills in the other ranks' slices. The per-rank counts /
+*       displacements use the SAME static contiguous split as
+*       NBODY_FPOLY_RANGE, shifted by the NSTART-1 base offset.
+*
+*       Seven (3,*) arrays  : F,FDOT,X0 (set by STEPS) and the higher
+*                             differences D2,D3,D2R,D3R (FPOLY2 + XTRNLD).
+*       Five (1,*) arrays   : T0,T0R,STEP,STEPR,TNEW (set by STEPS).
+      INCLUDE 'mpi_nbody.h'
+      INCLUDE 'mpif.h'
+      INTEGER  NSTART,NEND
+      REAL*8   GF(3,*),GFD(3,*),GX0(3,*),GD2(3,*),GD3(3,*),
+     &         GD2R(3,*),GD3R(3,*)
+      REAL*8   GT0(*),GT0R(*),GSTEP(*),GSTEPR(*),GTNEW(*)
+      INTEGER  MAXR
+      PARAMETER (MAXR=4096)
+      INTEGER  C3(MAXR),D3(MAXR),C1(MAXR),D1(MAXR)
+      INTEGER  R,NI,IBASE,IREM,JLOC,J0,IBAS,IERR
+*
+      IF (NRANKS.GT.MAXR) THEN
+          WRITE (6,*) 'NBODY_FPOLY_GATHER: NRANKS exceeds MAXR', NRANKS
+          CALL ABORT
+      END IF
+      NI    = NEND - NSTART + 1
+      IBASE = NI/NRANKS
+      IREM  = MOD(NI,NRANKS)
+      IBAS  = NSTART - 1
+      DO 10 R = 1,NRANKS
+*       0-based rank index (R-1); mirror the split in NBODY_FPOLY_RANGE, then
+*       shift the global offset by the NSTART-1 base of the loop range.
+          IF (R-1.LT.IREM) THEN
+              JLOC = IBASE + 1
+              J0   = IBAS + (R-1)*(IBASE+1)
+          ELSE
+              JLOC = IBASE
+              J0   = IBAS + IREM*(IBASE+1) + (R-1-IREM)*IBASE
+          END IF
+          C3(R) = 3*JLOC
+          D3(R) = 3*J0
+          C1(R) = JLOC
+          D1(R) = J0
+   10 CONTINUE
+*
+*       Three-component arrays: force, force-dot, predictor position, and the
+*       four higher-difference vectors.
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GF,C3,D3,MPI_DOUBLE_PRECISION,NBODY_COMM,IERR)
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GFD,C3,D3,MPI_DOUBLE_PRECISION,NBODY_COMM,IERR)
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GX0,C3,D3,MPI_DOUBLE_PRECISION,NBODY_COMM,IERR)
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GD2,C3,D3,MPI_DOUBLE_PRECISION,NBODY_COMM,IERR)
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GD3,C3,D3,MPI_DOUBLE_PRECISION,NBODY_COMM,IERR)
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GD2R,C3,D3,MPI_DOUBLE_PRECISION,NBODY_COMM,IERR)
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GD3R,C3,D3,MPI_DOUBLE_PRECISION,NBODY_COMM,IERR)
+*
+*       Single-component arrays: the irregular/regular times and steps.
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GT0,C1,D1,MPI_DOUBLE_PRECISION,NBODY_COMM,IERR)
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GT0R,C1,D1,MPI_DOUBLE_PRECISION,NBODY_COMM,IERR)
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GSTEP,C1,D1,MPI_DOUBLE_PRECISION,NBODY_COMM,IERR)
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GSTEPR,C1,D1,MPI_DOUBLE_PRECISION,NBODY_COMM,IERR)
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GTNEW,C1,D1,MPI_DOUBLE_PRECISION,NBODY_COMM,IERR)
+*
+      RETURN
+      END

@@ -60,6 +60,29 @@
       END
 *
 ************************************************************************
+      SUBROUTINE NBODY_FPOLY_RANGE(NSTART,NEND,ILOW,IHIGH)
+*
+*       Serial stub: the whole FPOLY2 start-up range is local.
+      INTEGER  NSTART,NEND,ILOW,IHIGH
+      ILOW  = NSTART
+      IHIGH = NEND
+      RETURN
+      END
+*
+************************************************************************
+      SUBROUTINE NBODY_FPOLY_GATHER(NSTART,NEND,GF,GFD,GX0,
+     &     GD2,GD3,GD2R,GD3R,GT0,GT0R,GSTEP,GSTEPR,GTNEW)
+*
+*       Serial stub: never reached (caller guards with NRANKS.GT.1). Present
+*       only so the shared start.f links in serial / AMUSE builds.
+      INTEGER  NSTART,NEND
+      REAL*8   GF(3,*),GFD(3,*),GX0(3,*),GD2(3,*),GD3(3,*),
+     &         GD2R(3,*),GD3R(3,*)
+      REAL*8   GT0(*),GT0R(*),GSTEP(*),GSTEPR(*),GTNEW(*)
+      RETURN
+      END
+*
+************************************************************************
       BLOCK DATA NBODY_MPI_BD
 *
 *       Default /MPICOMM/ for serial / AMUSE builds: a single rank, so the
