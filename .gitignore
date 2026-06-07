@@ -1,0 +1,17 @@
+# LLVM/clang coverage & profiling output
+*.profraw
+*.profdata
+*.gcda
+*.gcno
+
+# Makefile backup copies from build experiments
+Makefile.last*
+Makefile_cpu.last*
+Makefile_cpu.build.last*
+
+# Stray scratch / tooling dirs
+**/.claude/
+**/save/
+
+# Local source snapshots / tarballs
+*.tar.gz
