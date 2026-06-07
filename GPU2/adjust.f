@@ -5,6 +5,7 @@
 *       --------------------------------------
 *
       INCLUDE 'common6.h'
+      INCLUDE 'mpi_nbody.h'
       COMMON/ECHAIN/  ECH
       SAVE  DTOFF
       DATA  DTOFF /100.0D0/
@@ -421,11 +422,25 @@
    65     FORMAT (//,9X,'END RUN',3X,'TIME =',F8.1,'  CPUTOT =',F7.1,
      &                  '  ERRTOT =',F10.6,'  DETOT =',F10.6,
      &                  '  WTOT =',F7.1)
-          IF (KZ(1).GT.0.AND.NSUB.EQ.0) CALL MYDUMP(1,1)
+*       Path B (internal MPI): only rank 0 writes the restart dump -- every rank
+*       holds identical replicated state, so rank 0's fort.1 is canonical and
+*       this avoids a multi-rank fort.1 write race. The END RUN banner above is
+*       left on EVERY rank, consistent with all the other replicated ADJUST
+*       diagnostics and with what equiv_check.py compares cross-rank; a full
+*       rank-0-only stdout guard remains the separate broad-I/O deferred item.
+*       Serial / AMUSE builds have MYRANK=0 -> unchanged.
+          IF (MYRANK.EQ.0.AND.KZ(1).GT.0.AND.NSUB.EQ.0) CALL MYDUMP(1,1)
 *
-*       Close the libraries and stop.
+*       Close the libraries.
           CALL GPUNB_CLOSE
           CALL GPUIRR_CLOSE
+*       Path B: finalize internal MPI so the job exits CLEANLY at end-of-run.
+*       Without this the bare STOP makes Open MPI tear the job down abnormally,
+*       which can truncate a sibling rank's final buffered output (the END RUN
+*       line) -- the cause of the occasional missing END RUN at np>1. Collective
+*       but safe: ADJUST runs replicated on every rank with identical state, so
+*       all ranks reach this STOP together. No-op stub in serial/AMUSE builds.
+          CALL NBODY_MPI_FINALIZE
           STOP
       END IF
 *
