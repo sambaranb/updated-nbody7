@@ -1,8 +1,11 @@
 # Path 2 — integration serial-trim: strategy sketch
 
-*Status: STRATEGY (2026-06-10). No code yet; this ranks the candidates and
-fixes the measurement plan. Builds on the force decomposition (incr. 2+3),
-the start-up decomposition (FPOLY2 + FPOLY0), and the rank-0 I/O guard.*
+*Status: Step 0 DONE (2026-06-10) — instrumentation shipped and the
+attribution measured at N=5e4
+(`poc_validation/results_phase_attribution_2026-06-10.log`); measured
+re-ranking appended in §5. Next: C1. Builds on the force decomposition
+(incr. 2+3), the start-up decomposition (FPOLY2 + FPOLY0), and the rank-0
+I/O guard.*
 
 ## 1. The budget
 
@@ -160,3 +163,33 @@ Suggested phase order across the two tracks:
   trim from §3 as indicated.
 - **G2:** GPU-specific costs — incremental `gpunb` j-updates (C5), ranged
   `gpupot.gpu.cu` (falls out of C1), multi-GPU-per-node placement.
+
+## 5. Step 0 results — measured re-ranking (2026-06-10, N=5e4)
+
+Full table and analysis: `poc_validation/results_phase_attribution_2026-06-10.log`.
+np8 phase totals (wall s), at the sweep ADJUST cadence (`asis`, 2 calls) and a
+4× cadence (`adj4x`, 4 calls):
+
+| phase (np8)              | asis | adj4x | note |
+|--------------------------|------|-------|------|
+| **A2 ADJUST (A1 ENERGY2)** | **8.9 (6.5)** | **14.8 (13.3)** | np-invariant, even ↑ vs np1 |
+| P7+P7c regular force      | 6.6  | 4.7   | 7.4× vs np1, imbalance <0.5% |
+| P3+P3c irregular force    | 0.9  | 0.7   | 4.7× — small-block latency |
+| P2+P4+P9 replicated O(N·) | 2.3  | 1.8   | 1.5–2× *slower* than np1 (mem contention) |
+| P12 OUTPUT                | 1.8  | 1.0   | file I/O, np-invariant |
+| P8 regular tail           | 0.4  | 0.3   | **C2's guess refuted** |
+| everything else           | <0.3 | <0.3  | |
+| SUM                       | 21.1 | 23.3  | np1: 61.9 / 53.9 |
+
+**Verdict: C1 is not a "15%" item — it is THE item.** ENERGY2/GPUPOT is 31%
+of the np8 wall at the *suppressed* sweep cadence and 57% at the 4× cadence;
+everything else on the trim list is ≤ 2.3 s combined. Post-C1 estimate:
+phase-sum speedup 2.9→4.0× (asis), 2.3→4.5× (adj4x). C2 measured at 0.3–0.4 s
+(the second FIRR covers only regular-block members — the "force-eval-sized"
+guess was wrong) and is demoted until the GPU-build re-measurement. C3 stays
+marginal (P4 = 1.0 s ≈ what its extra gather would cost). C4's
+do-not-decompose call is vindicated (P5 = 0.08 s). P6 GPUNB_SEND = 0.03 s on
+CPU — mpi-gpu concern only, as flagged.
+
+**Next increment: C1** — ranged `gpupot` + Allgatherv + replicated
+fixed-order summation (FPOLY0 pattern), then re-run this matrix.

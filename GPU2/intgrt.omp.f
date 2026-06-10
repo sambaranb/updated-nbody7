@@ -236,7 +236,9 @@
           END IF
  1220 CONTINUE
 *       Find all particles in next block (TNEW = TMIN) and set TIME.
+      CALL NBODY_PHT_ON(1)
       CALL INEXT(NQ,LISTQ,TMIN,NXTLEN,NXTLST)
+      CALL NBODY_PHT_OFF(1)
 *
 *       Set new time and save block time (for regularization terminations).
       I = NXTLST(1)
@@ -325,13 +327,17 @@
 *       Check output time in case DTADJ & DELTAT not commensurate.
       IF (TIME.GT.TNEXT) THEN
           TIME = TNEXT
+          CALL NBODY_PHT_ON(16)
           CALL OUTPUT
+          CALL NBODY_PHT_OFF(16)
           GO TO 1
       END IF
 *
 *       See whether to advance ARchain or KS at first new time.
       IF (TIME.GT.TPREV) THEN
+          CALL NBODY_PHT_ON(12)
           CALL SUBINT(IQ,I10)
+          CALL NBODY_PHT_OFF(12)
 *       Check collision/coalescence indicator.
           IF (IQ.LT.0) GO TO 999
       END IF
@@ -350,6 +356,7 @@
    28 CONTINUE
 *
 *       Decide between predicting <= NPACT active (NFR = 0) or all particles.
+      CALL NBODY_PHT_ON(2)
       IF (NXTLEN.LE.NPACT.AND.NFR.EQ.0) THEN
 *
 *       Predict active particles and their neighbours in the GPUIRR library.
@@ -372,6 +379,7 @@
 *  40     CONTINUE
 *!$omp end parallel do
       END IF
+      CALL NBODY_PHT_OFF(2)
 *
 *       Save new time (output time at TIME > TADJ) and increase # blocks.
       TPREV = TIME
@@ -401,15 +409,20 @@
 *       single rank MYL0=1, MYLEN=NXTLEN and this is the original serial call;
 *       NRANKS=1 also skips the gather -> byte-identical serial behaviour.
       CALL NBODY_REGF_RANGE(NXTLEN,MYL0,MYLEN)
+      CALL NBODY_PHT_ON(3)
       IF (MYLEN.GT.0) THEN
           CALL GPUIRR_FIRR_VEC(MYLEN,NXTLST(MYL0),GF(1,MYL0),
      &                         GFD(1,MYL0))
       END IF
+      CALL NBODY_PHT_OFF(3)
+      CALL NBODY_PHT_ON(4)
       IF (NRANKS.GT.1) THEN
           CALL NBODY_IRRF_GATHER(NXTLEN,GF,GFD)
       END IF
+      CALL NBODY_PHT_OFF(4)
 *
 *       Choose between standard and parallel irregular integration.
+      CALL NBODY_PHT_ON(5)
       IF (NXTLEN.LE.NPMAX) THEN
 *
 *       Correct the irregular steps sequentially.
@@ -459,6 +472,7 @@
               END IF
   500     CONTINUE
       END IF
+      CALL NBODY_PHT_OFF(5)
       NSTEPI = NSTEPI + NXTLEN
 *
 *       Check regular force updates (NFR members on block-step #NBLCKR).
@@ -468,7 +482,9 @@
 *     TT3 = DBLTIM()
 *
 *       Predict all particles (except TPRED=TIME) in C++ on host.
+      CALL NBODY_PHT_ON(6)
       CALL CXVPRED(IFIRST,NTOT,TIME,T0,X0,X0DOT,F,FDOT,X,XDOT,TPRED)
+      CALL NBODY_PHT_OFF(6)
 *       Note it would be wrong to predict TPRED=TIME by corrected X0 & X0DOT.
 *
 *     TT4 = DBLTIM()
@@ -476,7 +492,9 @@
 *     IF (DMOD(TIME,2.0D0).EQ.0.0D0) WRITE (6,540)  CPRED
 * 540 FORMAT (' TIMING CXVPRED  ',1P,E10.2)
 *       Send all single particles and c.m. bodies to the GPU.
+      CALL NBODY_PHT_ON(7)
       CALL GPUNB_SEND(NN,BODY(IFIRST),X(1,IFIRST),XDOT(1,IFIRST))
+      CALL NBODY_PHT_OFF(7)
 *
 *       Obtain irregular & regular force and determine current neighbours.
       NOFL(1) = 0
@@ -484,6 +502,7 @@
       JNEXT = 0
       DO 55 II = 1,NFR,NIMAX
   550     NI = MIN(NFR-JNEXT,NIMAX)
+          CALL NBODY_PHT_ON(10)
 *       Copy neighbour radius, STEPR and state vector for each block.
 !$omp parallel do private(LL, I, K)
           DO 52 LL = 1,NI
@@ -505,16 +524,22 @@
 *       holds the full block before the replicated GPUCOR correction. On a
 *       single rank MYI0=1, MYNI=NI and this is the original serial call;
 *       NRANKS=1 also skips the gather -> byte-identical serial behaviour.
+          CALL NBODY_PHT_OFF(10)
+          CALL NBODY_PHT_ON(8)
           CALL NBODY_REGF_RANGE(NI,MYI0,MYNI)
           IF (MYNI.GT.0) THEN
               CALL GPUNB_REGF(MYNI,H2I(MYI0),DTR(MYI0),XI(1,MYI0),
      &                        VI(1,MYI0),GPUACC(1,MYI0),GPUJRK(1,MYI0),
      &                        GPUPHI(MYI0),LMAX,NBMAX,LISTGP(1,MYI0))
           END IF
+          CALL NBODY_PHT_OFF(8)
+          CALL NBODY_PHT_ON(9)
           IF (NRANKS.GT.1) THEN
               CALL NBODY_REGF_GATHER(NI,GPUACC,GPUJRK,GPUPHI,LISTGP,
      &                               LMAX)
           END IF
+          CALL NBODY_PHT_OFF(9)
+          CALL NBODY_PHT_ON(10)
 *       Copy neighbour lists from the GPU after overflow check.
           DO 54 LL = 1,NI
               I = IREG(JNEXT + LL)
@@ -575,6 +600,7 @@
 *             POT = POT + BODY(I)*GPUPHI(LL)
    57     CONTINUE
 *!$omp end parallel do
+          CALL NBODY_PHT_OFF(10)
           JNEXT = JNEXT + NI
    55 CONTINUE
 *
@@ -618,6 +644,7 @@
       END IF
 *
 *       Send corrected active particles to GPUIRR library.
+      CALL NBODY_PHT_ON(11)
 !$omp parallel do private(I, L)
       DO 60 L = 1,NXTLEN
           I = NXTLST(L)
@@ -625,6 +652,7 @@
      &                                            BODY(I),T0(I))
    60 CONTINUE
 !$omp end parallel do
+      CALL NBODY_PHT_OFF(11)
 *
 *     TT2 = DBLTIM()
 *     CPRED2 = CPRED2 + (TT2 - TT1)
@@ -670,11 +698,13 @@
       IF (KZ(19).GT.0) THEN
 *       Delay until time commensurate with 100-year step (new polynomials).
           IF (TIME.GT.TMDOT.AND.DMOD(TIME,STEPX).EQ.0.0D0) THEN
+              CALL NBODY_PHT_ON(13)
               IF (KZ(19).GE.3) THEN
                   CALL MDOT
               ELSE
                   CALL MLOSS
               END IF
+              CALL NBODY_PHT_OFF(13)
               IF (IPHASE.LT.0) GO TO 999
           END IF
       END IF
@@ -750,6 +780,8 @@
      &                 '  DETOT =',F10.6,'  WTOT =',F7.1)
       END IF
 *
+*       Path 2 Step 0: cumulative phase-timer table (no-op unless enabled).
+      CALL NBODY_PHT_REPORT
 *       Close GPU & GPUIRR library and stop.
       CALL GPUNB_CLOSE
       CALL GPUIRR_CLOSE

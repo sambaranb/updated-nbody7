@@ -1,0 +1,79 @@
+================================================================================
+PATH 2 Step 0: integration-cycle phase attribution (N=50000, M4 Pro, pure MPI)
+================================================================================
+Date     : 2026-06-10
+Branch   : mpi-parallel
+Binary   : GPU2/run_versions/nbody7b.mpi-cpu  (NBODY_PHASE_TIMERS=1)
+Harness  : mpi_design/poc_validation/run_phase_attr.sh
+Input    : input_gen_N50000_eq (equal-mass generated Plummer, Config B)
+           asis  = DTADJ 0.2, DELTAT 0.2, TCRIT 0.2  (the N-scaling sweep cadence)
+           adj4x = DTADJ 0.05 (4x more frequent ADJUST; production-like cadence)
+Mode     : per-rank dirs, NBODY_RANK0_IO=0, OMP_NUM_THREADS=1; 1 rep/cell.
+
+PHASE TABLE (rank-0 wall seconds, cumulative over the run)
+
+                                asis_np1   asis_np8   adj4x_np1  adj4x_np8
+  P1  INEXT scheduling             0.023      0.026      0.020      0.021
+  P2  predict PRED_ACT/ALL         0.634      1.213      0.551      0.971
+  P3  irr force slice              2.567      0.544      2.187      0.442
+  P3c irr force Allgather          0.000      0.312      0.000      0.252
+  P4  irr corrector NBINT(P)       0.493      0.979      0.381      0.733
+  P5  CXVPRED full predict         0.039      0.079      0.028      0.053
+  P6  GPUNB_SEND j-refresh         0.015      0.034      0.011      0.023
+  P7  reg force slice             47.916      6.508     35.489      4.613
+  P7c reg force Allgather          0.000      0.140      0.000      0.109
+  P8  reg tail list+FIRR+COR       0.274      0.397      0.222      0.300
+  P9  SET_JP block update          0.031      0.150      0.025      0.111
+  P10 SUBINT KS/chain              0.000      0.001      0.000      0.000
+  P11 MDOT/MLOSS stellar           0.000      0.000      0.000      0.000
+  A1  ENERGY2 (GPUPOT)             6.045      6.544     12.653     13.280
+  A2  ADJUST total (incl A1)       8.118      8.860     14.016     14.752
+  P12 OUTPUT                       1.765      1.834      0.926      0.954
+  SUM                             61.875     21.077     53.855     23.335
+
+  (ADJUST/ENERGY2 call counts: asis n=2, adj4x n=4. Slice imbalance across
+   the 8 ranks: P7 6.478-6.508 s, P3 0.528-0.551 s -- < 0.5%, the static
+   contiguous split is load-balanced at this N.)
+
+FINDINGS (the measured re-ranking of the strategy's section 3)
+
+1. C1 CONFIRMED AND DOMINANT -- it is not a "15%" item, it is THE item.
+   ENERGY2/GPUPOT is replicated O(N^2) and np-INVARIANT (6.0 -> 6.5 s at np8:
+   slightly SLOWER from 8-process memory contention). At the sweep cadence
+   (only 2 calls!) it is already 31% of the np8 integration wall; at the 4x
+   cadence it is 57%. The np8 ADJUST chain (8.9 / 14.8 s) dwarfs every other
+   non-scaling phase combined. Post-C1 estimate (slice ~7x + gather ~ P7c):
+   asis np8 21.1 -> ~15.5 s, adj4x np8 23.3 -> ~12 s, i.e. phase-sum speedup
+   2.9x -> 4.0x (asis) and 2.3x -> 4.5x (adj4x).
+
+2. C2 (regular tail: list post + 2nd FIRR + GPUCOR) DEMOTED. Measured at
+   0.27-0.40 s -- the strategy's "force-eval-sized" guess was wrong at this
+   N/cadence (the 2nd FIRR covers only regular-block members). Not worth the
+   biggest-gather-yet complexity now; re-examine on the GPU build where P7
+   collapses and relative weights shift.
+
+3. The decomposed kernels scale essentially perfectly where it matters:
+   P7 47.9 -> 6.51 s (7.4x, imbalance < 0.5%). P3 scales 4.7x (latency-bound
+   small irregular blocks, plus 0.31 s gather) -- the known copy-algorithm
+   small-block limit, not load imbalance.
+
+4. Replicated O(N)/O(NXTLEN) phases (P2 prediction, P4 corrector, P9 SET_JP)
+   get 1.5-2x SLOWER at np8 from replicated memory traffic on one node
+   (0.63->1.21, 0.49->0.98, 0.03->0.15 s). Still only ~2.3 s combined at np8.
+   C3 (corrector fold-in) stays Step-0-gated as planned: P4 = 0.98 s vs the
+   existing 0.31 s irregular gather -- decomposing it roughly trades those
+   two numbers; marginal until ENERGY2 is gone. C4 (do not decompose
+   prediction) is vindicated: P5 = 0.08 s.
+
+5. OUTPUT is 0.9 s/call of file I/O (np-invariant) -- an I/O cost, not a
+   compute-decomposition target. Under the production rank-0 guard ranks > 0
+   write to /dev/null; per-DELTAT cost is the price of the data product.
+
+6. P6 GPUNB_SEND = 0.03 s on CPU -- confirms it is a non-issue for mpi-cpu
+   and remains a flagged mpi-gpu concern only (H->D of all N per regular
+   block).
+
+DECISION: implement C1 next (ranged GPUPOT + Allgatherv + replicated
+fixed-order summation, the FPOLY0 pattern). Hold C2/C3 until after C1
+re-measurement; the GPU build re-runs this matrix before its own ranking.
+================================================================================

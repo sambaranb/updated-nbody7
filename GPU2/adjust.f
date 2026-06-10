@@ -12,10 +12,13 @@
 *
 *
 *       Predict X & XDOT for all particles (except unperturbed pairs).
+      CALL NBODY_PHT_ON(15)
       CALL XVPRED(IFIRST,NTOT)
 *
 *       Obtain the total energy at current time using GPU for potentials.
+      CALL NBODY_PHT_ON(14)
       CALL ENERGY2
+      CALL NBODY_PHT_OFF(14)
 *
 *       Initialize c.m. terms.
       DO 10 K = 1,3
@@ -344,7 +347,9 @@
 *       See whether standard output is due.
       IOUT = 0
       IF (TIME.GE.TNEXT) THEN
+          CALL NBODY_PHT_ON(16)
           CALL OUTPUT
+          CALL NBODY_PHT_OFF(16)
           IOUT = 1
 *       Check optional overflow diagnostics (#33 > 1: current & accumulated).
           IF (KZ(33).GT.1) THEN
@@ -438,10 +443,14 @@
 *       line) -- the cause of the occasional missing END RUN at np>1. Collective
 *       but safe: ADJUST runs replicated on every rank with identical state, so
 *       all ranks reach this STOP together. No-op stub in serial/AMUSE builds.
+          CALL NBODY_PHT_OFF(15)
+*       Path 2 Step 0: cumulative phase-timer table (no-op unless enabled).
+          CALL NBODY_PHT_REPORT
           CALL NBODY_MPI_FINALIZE
           STOP
       END IF
 *
-   70 RETURN
+   70 CALL NBODY_PHT_OFF(15)
+      RETURN
 *
       END

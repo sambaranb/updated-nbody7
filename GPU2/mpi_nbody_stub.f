@@ -159,3 +159,6 @@
       DATA NBODY_COMM,MYRANK,NRANKS,IS_PARALLEL /0,0,1,.FALSE./
       DATA RANK0_IO /.FALSE./
       END
+*
+*       Path 2 Step 0: phase-attribution timers (shared, no MPI symbols).
+      INCLUDE 'phase_timers.inc'
