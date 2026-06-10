@@ -2,6 +2,8 @@
 
 Sverre Aarseth's NBODY7 including updates. See the README files in the folders AMUSE_share and standalone_version for more details.
 
+For the internal-MPI parallel build (`make mpi-cpu`) and how to run it — in particular the stdin redirect every rank needs and the rank-0 I/O guard for shared run directories — see [mpi_design/README.md](mpi_design/README.md).
+
 
 References:
 
