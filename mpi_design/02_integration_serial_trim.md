@@ -1,0 +1,162 @@
+# Path 2 — integration serial-trim: strategy sketch
+
+*Status: STRATEGY (2026-06-10). No code yet; this ranks the candidates and
+fixes the measurement plan. Builds on the force decomposition (incr. 2+3),
+the start-up decomposition (FPOLY2 + FPOLY0), and the rank-0 I/O guard.*
+
+## 1. The budget
+
+Measured (N-scaling sweeps, `results_N_scaling_2026-06-06.log`): the
+integration-only parallel fraction is **p ≈ 0.85, flat in N** (13049 → 1e5);
+np8 integration speedup 3.9–4.1×; copy-algorithm ceiling at p = 0.85 is
+**1/(1−p) ≈ 6.7×**. Path 2 = attack the ~15% replicated/serial residue.
+
+| p (integ) | np8 | np16 | ceiling |
+|-----------|-----|------|---------|
+| 0.85 (now)| 3.9 | 5.2  | 6.7×    |
+| 0.93      | 5.4 | 8.0  | 14×     |
+| 0.95      | 5.9 | 9.5  | 20×     |
+
+Two honesty notes on the 15%:
+1. The sweeps used a **large DTADJ/DELTAT precisely to suppress the ADJUST
+   diagnostics** (see `profile_scaling.sh` header). Production runs adjust far
+   more often, so the episodic ADJUST cost (§3, C1) is *under-represented* in
+   the measured 15%.
+2. Part of the residue is not serial work but the **Allgather time itself**
+   (grows with np, shrinks per-rank work). The instrumentation below separates
+   the two — comm time is attacked with different tools (fewer/larger
+   messages), not by decomposing more loops.
+
+## 2. Step 0 — phase attribution (measure before cutting)
+
+One instrumentation increment, no numerics change: WTIME accumulators around
+each phase of the `intgrt.omp.f` cycle and the ADJUST chain, cumulative totals
+printed at END RUN (rank 0; per-rank max/min for imbalance). Gate behind an
+environment variable (`NBODY_PHASE_TIMERS=1`) so production output is
+untouched.
+
+Phases to time, per block step:
+
+| # | phase | site (intgrt.omp.f) | today | scaling |
+|---|-------|---------------------|-------|---------|
+| P1 | INEXT scheduling + bookkeeping | ~239 | replicated | O(NQ) |
+| P2 | prediction `GPUIRR_PRED_ACT/ALL` | 353–358 | replicated | O(NXTLEN) / O(N) |
+| P3 | irregular force slice + gather | 403–409 | **decomposed** | O(NXTLEN·⟨NB⟩/np) + comm |
+| P4 | irregular corrector `NBINT/NBINTP` | 413–460 | replicated | O(NXTLEN) |
+| P5 | `CXVPRED` full predict (reg. step) | 471 | replicated | O(N) |
+| P6 | `GPUNB_SEND` j-refresh (reg. step) | 479 | replicated | O(N) |
+| P7 | regular force slice + gather | 508–516 | **decomposed** | O(NI·N/np) + comm |
+| P8 | regular tail: list post + 2nd `FIRR(NI)` + `GPUCOR` | 530–571 | replicated | O(NI·⟨NB⟩) |
+| P9 | `GPUIRR_SET_JP` block update | 622–624 | replicated | O(NXTLEN) |
+| P10| `SUBINT` (KS/chain) + MDOT/BSE | 334, 674 | replicated (by contract) | — |
+| A1 | ADJUST: `ENERGY2`→`GPUPOT` | adjust.f:18 | replicated | **O(N²) per DTADJ** |
+| A2 | ADJUST: `LAGR` + rest + OUTPUT | adjust.f:167 | replicated | O(N log N) |
+
+Run the table at N = 5e4 and 1e5, np = 1 vs 8, Config B, twice: once with the
+sweep's large DTADJ and once with a production-like DTADJ. Rank the candidates
+below by the np8 numbers. (~15 timer pairs; pure timing, results untouched.)
+
+## 3. Candidates, ranked a priori
+
+All decompositions follow the proven bit-identity recipe: **per-i split with
+fully replicated j-state, each rank fills its slice in place, Allgatherv,
+then any reduction runs replicated in fixed serial order on the gathered
+arrays. Never MPI_Allreduce floating-point.**
+
+### C1 — ENERGY2 / GPUPOT potential at ADJUST  ⟵ first increment
+The only remaining **O(N²)** in the integration era, replicated on every rank
+at every DTADJ. `lib/gpupot.cpp` is a plain i×j double loop → add a ranged
+entry `gpupot_range(i0, ni, n, m, x, phi)` (old entry = full range, all
+backends keep their unranged signature working); each rank computes φ for its
+`NBODY_REGF_RANGE` i-slice, Allgatherv φ, and the existing PHICOR/POT
+summation (energy2.f:45–56) runs replicated in original order → bit-identical.
+- Yield: episodic but large; dominates production-DTADJ runs at large N.
+- Effort/risk: small/low — exact FPOLY0 pattern.
+- **GPU dividend**: the same ranged signature added to `gpupot.gpu.cu` gives
+  multi-GPU potentials for free in the future mpi-gpu build.
+
+### C2 — regular-phase tail (list post + 2nd FIRR + GPUCOR), P8
+The regular block's replicated tail is force-eval-sized: for every regular
+member it post-processes the new neighbour list, **re-evaluates the irregular
+force (`GPUIRR_FIRR_VEC(NI)`)** and runs the `GPUCOR` corrector. Decompose
+over the *same* i-slice the rank already used for `GPUNB_REGF`: move the
+gather *after* the corrector and gather corrected state instead of raw kernel
+output (X0, X0DOT, F, FDOT, FR/FRDOT, D-differences, T0R, STEPR, RS + LIST,
+LMAX-stride — superset of the FPOLY2+FPOLY0 gathers); `GPUIRR_SET_LIST` /
+`SET_JP` then run replicated on identical gathered state.
+- Yield: likely the top non-episodic item (P8 ≈ another irregular-force pass
+  over every regular block).
+- Effort/risk: medium — biggest gather set yet; KS-trigger/neighbour-overflow
+  side paths need care. Gate on the Step-0 number for P8.
+
+### C3 — irregular corrector NBINT/NBINTP, P4
+Same idea one level down: each rank corrects only its NXTLEN slice (it already
+computed those forces), gather the corrected per-particle state (FPOLY2-family
+arrays + `ISTAT`/IKS KS-trigger flags as an integer array).
+- Yield: smaller flops than C2 (corrector is O(1)-per-neighbour-ish, not a
+  force re-evaluation) and it **doubles the per-block-step gather count** —
+  at small NXTLEN the added latency can eat the gain. Strictly Step-0-gated;
+  attempt only if P4 ≫ P3's comm share.
+
+### C4 — prediction (P2, P5): **do not decompose**
+Predicted x,v of *all* particles are inputs to every rank's kernels, so a
+split forces an O(N) Allgather per block step that costs more than the ~20
+flops/particle prediction it saves. Replicate (NBODY6++GPU does the same).
+Revisit only if Step 0 shows P2+P5 > 5% *and* we target single-node
+shared-memory MPI only.
+
+### C5 — GPUNB_SEND (P6): record for the GPU build
+A replicated O(N) copy into the regular-force library per regular block. On
+mpi-cpu it is memcpy-scale (cheap); on **mpi-gpu it becomes a full
+host→device transfer of all N per rank per regular block** — the natural
+fix there is an incremental j-update API in `gpunb` (as `gpuirr` already has
+with SET_JP), not an MPI change. Not a Path-2 item; flagged for Phase G2.
+
+### C6 — LAGR / OUTPUT diagnostics (A2), INEXT/SET_JP/KS (P1, P9, P10)
+LAGR feeds RDENS back into physics, so it must stay consistent (decomposing a
+sort is not worth it; rank-0 + Bcast gives no wall-time gain since the other
+ranks just wait). KS/chain/BSE stay replicated by the design contract.
+Deprioritised unless Step 0 says otherwise.
+
+**Proposed sequence:** Step 0 (instrumentation + attribution table) → C1
+(GPUPOT, also the first GPU-shared API) → C2 and/or C3 strictly as ranked by
+the table, each validated with `run_equiv.sh` bit-identity np 1/2/4/8 before
+the next.
+
+## 4. The GPU endgame (why trim CPU serial now)
+
+Ultimate goal: **MPI × GPU** — each rank drives its own GPU
+(gpudyn1/gpudyn3-class nodes), regular force on the devices, everything else
+on the CPUs.
+
+1. **The decomposition API is already kernel-agnostic.** `NBODY_REGF_RANGE` /
+   `NBODY_REGF_GATHER` wrap `GPUNB_REGF` identically whether the backend is
+   `gpunb.cpp` (CPU) or `gpunb.velocity.cu` (CUDA). An `mpi-gpu` Makefile
+   target is *wiring*, not new parallelisation: link the CUDA libs with
+   `mpi_nbody.o`, bind rank → device (`MYRANK % nDevices`, or
+   `CUDA_VISIBLE_DEVICES` per rank from the launcher), done. The same holds
+   for `mpi-sse`/`mpi-avx`.
+2. **Amdahl inverts on the GPU.** The GPU collapses the regular-force time
+   (the bulk of today's parallel 85%) by an order of magnitude or more, so on
+   an mpi-gpu build the *CPU-side replicated residue* — exactly the P-phases
+   above — dominates the wall clock. Every Path-2 trim is therefore a direct
+   investment in the GPU build; none of it is throwaway. Conversely, items
+   that look minor on mpi-cpu (P6 = GPUNB_SEND, P8's second FIRR) grow in
+   relative weight on GPU — another reason Step 0's table is run again on the
+   GPU build before final ranking there.
+3. **Validation semantics change on GPU.** CPU and GPU force kernels are not
+   bit-identical *to each other* (summation order/precision), so the mpi-gpu
+   acceptance is: bit-identity **np1-gpu vs npK-gpu** (the decomposition
+   guarantee, same as today) + physics-level agreement gpu vs cpu (the
+   existing four-host AMUSE sign-off methodology). Pure-MPI (one rank per
+   GPU, OMP_NUM_THREADS=1) remains the bit-identical mode.
+
+Suggested phase order across the two tracks:
+
+- **G0 (cheap, anytime):** `mpi-gpu` build target + rank→device binding;
+  validate np1-gpu ≡ npK-gpu with the existing harness on gpudyn1/3.
+- **Path 2 on mpi-cpu:** Step 0 → C1 → C2/C3 (this document).
+- **G1:** re-run the Step-0 attribution on mpi-gpu; re-rank; pull the next
+  trim from §3 as indicated.
+- **G2:** GPU-specific costs — incremental `gpunb` j-updates (C5), ranged
+  `gpupot.gpu.cu` (falls out of C1), multi-GPU-per-node placement.
