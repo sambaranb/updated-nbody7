@@ -147,3 +147,21 @@ extern "C"{
 		gpupot(*n, m, x, pot);
 	}
 }
+
+/* Path 2 C1 fallback binding (i0 is 1-based): full evaluation, keep the
+   requested slice. Only reachable with internal MPI active (np > 1), which
+   no build of this backend wires up yet -- correct (bit-identical to the
+   full call) but unaccelerated; a true ranged kernel is the mpi-gpu G2
+   work item (see mpi_design/02_integration_serial_trim.md). */
+extern "C" void gpupot_range_(
+		int *i0,
+		int *ni,
+		int *n,
+		double m[],
+		double x[][3],
+		double pot[]){
+	double *tmp = new double[*n];
+	gpupot(*n, m, x, tmp);
+	for(int k=0; k<*ni; k++) pot[*i0 - 1 + k] = tmp[*i0 - 1 + k];
+	delete [] tmp;
+}

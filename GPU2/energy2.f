@@ -5,7 +5,9 @@
 *       --------------------------------
 *
       INCLUDE 'common6.h'
+      INCLUDE 'mpi_nbody.h'
       REAL*8  GPUPHI(NMAX)
+      INTEGER  MYI0,MYNI
 *
 *
 *       Sum the total energy of regularized pairs.
@@ -24,7 +26,25 @@
       VIR = 0.0
       POT = 0.0
       NN = NTOT - IFIRST + 1
-      CALL GPUPOT(NN,BODY(IFIRST),X(1,IFIRST),GPUPHI)
+*       Path 2 C1 (internal MPI): the O(NN^2) potential is the dominant
+*       replicated cost of the np>1 integration wall (see mpi_design/
+*       02_integration_serial_trim.md section 5). Decompose it with the
+*       proven FPOLY0 pattern: each rank evaluates only its contiguous
+*       NBODY_REGF_RANGE i-slice against the full j-set (GPUPOT_RANGE
+*       reproduces GPUPOT's exact per-i summation), then the slices are
+*       Allgathered so the PHICOR/POT summation below runs replicated in
+*       the original fixed order on identical inputs -> bit-identical.
+*       Single rank / serial / AMUSE builds: the original GPUPOT call.
+      IF (NRANKS.GT.1) THEN
+          CALL NBODY_REGF_RANGE(NN,MYI0,MYNI)
+          IF (MYNI.GT.0) THEN
+              CALL GPUPOT_RANGE(MYI0,MYNI,NN,BODY(IFIRST),
+     &                          X(1,IFIRST),GPUPHI)
+          END IF
+          CALL NBODY_PHI_GATHER(NN,GPUPHI)
+      ELSE
+          CALL GPUPOT(NN,BODY(IFIRST),X(1,IFIRST),GPUPHI)
+      END IF
 *
 *       Move the table entries down to give room for any KS components.
       I2 = 2*NPAIRS

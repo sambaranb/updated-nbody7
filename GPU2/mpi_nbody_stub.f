@@ -160,5 +160,16 @@
       DATA RANK0_IO /.FALSE./
       END
 *
+************************************************************************
+      SUBROUTINE NBODY_PHI_GATHER(NI,GPHI)
+*
+*       Serial stub: never reached (ENERGY2 guards with NRANKS.GT.1).
+*       Present only so the shared energy2.f links in serial / AMUSE
+*       builds.
+      INTEGER  NI
+      REAL*8   GPHI(*)
+      RETURN
+      END
+*
 *       Path 2 Step 0: phase-attribution timers (shared, no MPI symbols).
       INCLUDE 'phase_timers.inc'

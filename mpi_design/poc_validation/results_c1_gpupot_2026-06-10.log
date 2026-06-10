@@ -1,0 +1,58 @@
+================================================================================
+PATH 2 C1: MPI-decompose the ENERGY2/GPUPOT O(N^2) potential at ADJUST
+================================================================================
+Date     : 2026-06-10
+Branch   : mpi-parallel
+Binary   : GPU2/run_versions/nbody7b.mpi-cpu  (pure-MPI, OMP_NUM_THREADS=1)
+Harness  : run_phase_attr.sh (N=5e4 matrix), run_equiv.sh (bit-identity)
+Baseline : results_phase_attribution_2026-06-10.log (Step 0, pre-C1)
+
+WHAT CHANGED
+  GPU2/lib/gpupot.cpp   : + gpupot_range(i0,ni,n,m,x,pot) -- evaluates the
+    potential only for the i-slice against the FULL j-set; the j-loop is a
+    verbatim copy of gpupot()'s (same order, same compensated float
+    summation) so pot[i] is bit-identical to the full evaluation. gpupot()
+    itself untouched (serial path = shipped instruction stream).
+    + extern "C" gpupot_range_ Fortran binding (1-based i0).
+  gpupot.{sse,avx}.cpp, gpupot.gpu.cu, gpupot.metal.mm : + gpupot_range_
+    fallback (full evaluation, copy the slice) so the shared energy2.f links
+    in every backend; only reachable with internal MPI np>1, which no build
+    of those backends wires up yet. True ranged GPU kernel = G2 work item.
+  GPU2/mpi_nbody.f      : + NBODY_PHI_GATHER (1 Allgatherv, REGF_RANGE split,
+    MPI_IN_PLACE); no-op stub in mpi_nbody_stub.f.
+  GPU2/energy2.f        : NRANKS>1 -> GPUPOT_RANGE over the rank's
+    NBODY_REGF_RANGE slice + NBODY_PHI_GATHER; else the original GPUPOT.
+    The PHICOR/POT summation below is untouched and runs replicated in the
+    original fixed order on identical gathered inputs -> bit-identical POT.
+
+BIT-IDENTITY
+  run_equiv.sh (13049-body BSE, per-rank dirs): PASS -- np1 (original GPUPOT
+  path) == np2 == np4, all ranks. This directly proves gpupot_range == gpupot
+  per particle, since np1 takes the old code path.
+  N=5e4 attribution runs: np8 ADJUST/END RUN physics lines bit-identical to
+  np1 at BOTH cadences. Block-step and ADJUST counts identical (control flow
+  unchanged).
+
+MEASURED EFFECT (N=5e4, np8 wall seconds; pre-C1 -> post-C1)
+
+                            asis (DTADJ=0.2)      adj4x (DTADJ=0.05)
+  A1  ENERGY2 (GPUPOT)      6.54 -> 0.83  (7.9x)  13.28 -> 1.65  (8.1x)
+  A2  ADJUST total          8.86 -> 3.28          14.75 -> 3.16
+  SUM all phases           21.08 -> 15.43         23.34 -> 11.59
+  phase-sum speedup vs np1  2.94 -> 4.07x          2.31 -> 4.66x
+
+  (np1 unchanged: 62.8 / 54.0 s -- serial path untouched. Slice imbalance
+  across ranks < 0.5%, same as the force kernels. The Step-0 post-C1
+  estimates -- 4.0x and 4.5x -- hit within 3%.)
+
+REMAINING np8 RESIDUE (asis): A2-A1 = 2.5 s (XVPRED + CORE + LAGR + ADJUST
+  bookkeeping, replicated), OUTPUT 1.9 s (file I/O), P2+P4+P9 = 2.3 s
+  (replicated O(N)/O(NXTLEN) with memory contention), gathers 0.3 s. The
+  next-largest single compute item is now the regular force slice itself
+  (6.5 s, already decomposed and scaling 7.4x). Per the strategy doc, C2/C3
+  stay on hold until the GPU-build re-measurement re-ranks the residue.
+
+GPU DIVIDEND: gpupot_range's signature is now the contract for the future
+  ranged gpupot.gpu.cu kernel -- multi-GPU potentials in the mpi-gpu build
+  drop in behind the same energy2.f call.
+================================================================================

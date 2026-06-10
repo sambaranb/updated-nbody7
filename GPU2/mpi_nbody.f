@@ -538,5 +538,49 @@
       RETURN
       END
 *
+************************************************************************
+      SUBROUTINE NBODY_PHI_GATHER(NI,GPHI)
+*
+*       Path 2 C1: Allgather the per-particle potentials each rank computed
+*       (GPUPOT_RANGE) for its contiguous sub-range of the NI bodies, so
+*       every rank holds the full GPUPHI before the replicated PHICOR/POT
+*       summation in ENERGY2 (which then runs in the original fixed serial
+*       order on identical inputs -> bit-identical total energy). The
+*       per-rank counts/displacements mirror NBODY_REGF_RANGE exactly;
+*       MPI_IN_PLACE leaves this rank's slice and fills in the others.
+      INCLUDE 'mpi_nbody.h'
+      INCLUDE 'mpif.h'
+      INTEGER  NI
+      REAL*8   GPHI(*)
+      INTEGER  MAXR
+      PARAMETER (MAXR=4096)
+      INTEGER  C1(MAXR),D1(MAXR)
+      INTEGER  R,IBASE,IREM,JLOC,J0,IERR
+*
+      IF (NRANKS.GT.MAXR) THEN
+          WRITE (6,*) 'NBODY_PHI_GATHER: NRANKS exceeds MAXR', NRANKS
+          CALL ABORT
+      END IF
+      IBASE = NI/NRANKS
+      IREM  = MOD(NI,NRANKS)
+      DO 10 R = 1,NRANKS
+*       0-based rank index (R-1); mirror the split in NBODY_REGF_RANGE.
+          IF (R-1.LT.IREM) THEN
+              JLOC = IBASE + 1
+              J0   = (R-1)*(IBASE+1)
+          ELSE
+              JLOC = IBASE
+              J0   = IREM*(IBASE+1) + (R-1-IREM)*IBASE
+          END IF
+          C1(R) = JLOC
+          D1(R) = J0
+   10 CONTINUE
+*
+      CALL MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL,
+     &     GPHI,C1,D1,MPI_DOUBLE_PRECISION,NBODY_COMM,IERR)
+*
+      RETURN
+      END
+*
 *       Path 2 Step 0: phase-attribution timers (shared, no MPI symbols).
       INCLUDE 'phase_timers.inc'

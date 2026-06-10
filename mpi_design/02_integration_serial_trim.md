@@ -193,3 +193,21 @@ CPU — mpi-gpu concern only, as flagged.
 
 **Next increment: C1** — ranged `gpupot` + Allgatherv + replicated
 fixed-order summation (FPOLY0 pattern), then re-run this matrix.
+
+## 6. C1 shipped — measured effect (2026-06-10)
+
+Implementation and full numbers: `poc_validation/results_c1_gpupot_2026-06-10.log`.
+`gpupot_range` (verbatim per-i kernel, full j-set) in `lib/gpupot.cpp` +
+link-compatible fallbacks in the sse/avx/gpu/metal backends +
+`NBODY_PHI_GATHER` + the `NRANKS>1` branch in `energy2.f`; serial path
+untouched. Bit-identical np1/2/4 (run_equiv) and np8-vs-np1 at N=5e4 on both
+cadences — and since np1 takes the *original* GPUPOT path, the equivalence
+run directly proves `gpupot_range ≡ gpupot` per particle.
+
+N=5e4 np8: **ENERGY2 6.5→0.83 s (7.9×) / 13.3→1.65 s (8.1×)**; phase-sum
+speedup **2.94→4.07×** (sweep cadence) and **2.31→4.66×** (4× cadence) — the
+§5 post-C1 estimates hit within 3%. The np8 residue is now ADJUST-rest
+(2.5 s), OUTPUT file I/O (1.9 s), and the contended replicated O(N) phases
+(2.3 s); the largest *compute* item is the already-decomposed regular force
+slice. C2/C3 remain on hold pending the GPU-build re-measurement (§4 G1),
+which is the natural next step together with G0 (mpi-gpu wiring).
