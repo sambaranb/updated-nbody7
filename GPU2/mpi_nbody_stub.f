@@ -17,6 +17,7 @@
       MYRANK      = 0
       NRANKS      = 1
       IS_PARALLEL = .FALSE.
+      RANK0_IO    = .FALSE.
 *
       RETURN
       END
@@ -95,6 +96,57 @@
       END
 *
 ************************************************************************
+      LOGICAL FUNCTION NBODY_IORANK()
+*
+*       Serial stub: the broad rank-0 I/O guard is never active (RANK0_IO
+*       stays .FALSE.), so every output OPEN site and the MYDUMP save
+*       path execute the original serial I/O unconditionally.
+      INCLUDE 'mpi_nbody.h'
+*
+      NBODY_IORANK = (MYRANK.EQ.0 .OR. .NOT.RANK0_IO)
+*
+      RETURN
+      END
+*
+************************************************************************
+      SUBROUTINE NBODY_NULL_OPEN(IU,FRM)
+*
+*       Serial stub: never reached (call sites guard with NBODY_IORANK(),
+*       which is always .TRUE. here). Present so the shared output OPEN
+*       sites link in serial / AMUSE builds; the body mirrors the real
+*       version for safety.
+      INTEGER  IU, IOS
+      CHARACTER*(*)  FRM
+*
+      CLOSE (UNIT=IU,IOSTAT=IOS)
+      OPEN (UNIT=IU,FILE='/dev/null',STATUS='OLD',FORM=FRM,IOSTAT=IOS)
+*
+      RETURN
+      END
+*
+************************************************************************
+      SUBROUTINE NBODY_STOP_PROBE(IO)
+*
+*       Serial stub: the original single-process manual-termination probe
+*       (dummy file STOP in the run directory). IO = 0 means it exists.
+      INTEGER  IO
+*
+      OPEN (99,FILE='STOP',STATUS='OLD',FORM='FORMATTED',IOSTAT=IO)
+      IF (IO.EQ.0) CLOSE (99)
+*
+      RETURN
+      END
+*
+************************************************************************
+      SUBROUTINE NBODY_BCAST_R8(X)
+*
+*       Serial stub: nothing to broadcast.
+      REAL*8  X
+*
+      RETURN
+      END
+*
+************************************************************************
       BLOCK DATA NBODY_MPI_BD
 *
 *       Default /MPICOMM/ for serial / AMUSE builds: a single rank, so the
@@ -105,4 +157,5 @@
 *       integrator references, so it is pulled in even from libnbody7.a.
       INCLUDE 'mpi_nbody.h'
       DATA NBODY_COMM,MYRANK,NRANKS,IS_PARALLEL /0,0,1,.FALSE./
+      DATA RANK0_IO /.FALSE./
       END

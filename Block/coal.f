@@ -11,6 +11,8 @@
       LOGICAL  FIRST
       SAVE  FIRST
       DATA  FIRST /.TRUE./
+      LOGICAL  NBODY_IORANK
+      EXTERNAL NBODY_IORANK
 *
 *
 *       Distinguish between KS and chain regularization.
@@ -405,7 +407,11 @@
 *
 *       Open unit #12 the first time.
       IF (FIRST) THEN
-          OPEN (UNIT=12,STATUS='NEW',FORM='FORMATTED',FILE='COAL')
+          IF (NBODY_IORANK()) THEN
+              OPEN (UNIT=12,STATUS='NEW',FORM='FORMATTED',FILE='COAL')
+          ELSE
+              CALL NBODY_NULL_OPEN(12,'FORMATTED')
+          END IF
           FIRST = .FALSE.
 *
 *       Print cluster scaling parameters at start of the run.

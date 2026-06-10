@@ -13,11 +13,17 @@
       LOGICAL  FIRST
       SAVE  FIRST
       DATA  FIRST /.TRUE./
+      LOGICAL  NBODY_IORANK
+      EXTERNAL NBODY_IORANK
 *
 *
 *       Write formatted data bank on unit 87.
       IF (FIRST) THEN
-          OPEN (UNIT=87,STATUS='NEW',FORM='FORMATTED',FILE='HIDAT')
+          IF (NBODY_IORANK()) THEN
+              OPEN (UNIT=87,STATUS='NEW',FORM='FORMATTED',FILE='HIDAT')
+          ELSE
+              CALL NBODY_NULL_OPEN(87,'FORMATTED')
+          END IF
           FIRST = .FALSE.
           WRITE (87,1)
     1     FORMAT (/,'  NAM1  NAM2  NAM3  K*       M1   M2   M3    RI',

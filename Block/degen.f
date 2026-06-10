@@ -10,6 +10,8 @@
       LOGICAL FIRST,FIRST2,FIRST3
       SAVE FIRST,FIRST2,FIRST3
       DATA FIRST,FIRST2,FIRST3 /.TRUE.,.TRUE.,.TRUE./
+      LOGICAL  NBODY_IORANK
+      EXTERNAL NBODY_IORANK
 *
 *
 *       Skip output for start and end of merger.
@@ -28,7 +30,11 @@
 *
 *       Open unit #4 the first time.
       IF (NB.GT.0.AND.FIRST) THEN
-          OPEN (UNIT=4,STATUS='NEW',FORM='FORMATTED',FILE='DEGEN')
+          IF (NBODY_IORANK()) THEN
+              OPEN (UNIT=4,STATUS='NEW',FORM='FORMATTED',FILE='DEGEN')
+          ELSE
+              CALL NBODY_NULL_OPEN(4,'FORMATTED')
+          END IF
           FIRST = .FALSE.
 *
 *       Print cluster scaling parameters at start of the run.
@@ -124,8 +130,12 @@
           DO 30 J = 1,N
               IF (KSTAR(J).EQ.13) THEN
                   IF (FIRST2) THEN
-                      OPEN (UNIT=33,STATUS='NEW',FORM='FORMATTED',
-     &                                                 FILE='NS')
+                      IF (NBODY_IORANK()) THEN
+                          OPEN (UNIT=33,STATUS='NEW',FORM='FORMATTED',
+     &                                                     FILE='NS')
+                      ELSE
+                          CALL NBODY_NULL_OPEN(33,'FORMATTED')
+                      END IF
                       FIRST2 = .FALSE.
                   END IF
                   IF (J.LT.IFIRST) THEN
@@ -149,8 +159,12 @@
                       IF (NAME(JCM).LT.0) GO TO 30
                   END IF
                   IF (FIRST3) THEN
-                      OPEN (UNIT=34,STATUS='NEW',FORM='FORMATTED',
-     &                                                 FILE='BH')
+                      IF (NBODY_IORANK()) THEN
+                          OPEN (UNIT=34,STATUS='NEW',FORM='FORMATTED',
+     &                                                     FILE='BH')
+                      ELSE
+                          CALL NBODY_NULL_OPEN(34,'FORMATTED')
+                      END IF
                       FIRST3 = .FALSE.
                   END IF
                   VI2 = XDOT(1,J)**2 + XDOT(2,J)**2 + 

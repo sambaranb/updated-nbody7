@@ -12,11 +12,17 @@
       LOGICAL  FIRST
       SAVE  FIRST,IPREV,ISKIP
       DATA  FIRST,IPREV,ISKIP  /.TRUE.,0,0/
+      LOGICAL  NBODY_IORANK
+      EXTERNAL NBODY_IORANK
 *
 *
 *       Open unit #17 the first time.
       IF (FIRST) THEN
-          OPEN (UNIT=17,STATUS='NEW',FORM='FORMATTED',FILE='BINEV')
+          IF (NBODY_IORANK()) THEN
+              OPEN (UNIT=17,STATUS='NEW',FORM='FORMATTED',FILE='BINEV')
+          ELSE
+              CALL NBODY_NULL_OPEN(17,'FORMATTED')
+          END IF
           FIRST = .FALSE.
           WRITE (17,5)
     5     FORMAT ('   TPHYS  NAM1  NAM2  K1  K2  KC   M1   M2     R1',

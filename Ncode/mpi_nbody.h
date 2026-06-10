@@ -18,3 +18,13 @@
       INTEGER  NBODY_COMM, MYRANK, NRANKS
       LOGICAL  IS_PARALLEL
       COMMON /MPICOMM/ NBODY_COMM, MYRANK, NRANKS, IS_PARALLEL
+*
+*       Broad rank-0 I/O guard (Path B production hardening). When active
+*       (np > 1 and environment NBODY_RANK0_IO != 0, the default), only
+*       rank 0 writes the output files / stdout; ranks > 0 have their
+*       output units connected to /dev/null so all ranks can share ONE
+*       working directory. Serial / AMUSE builds and the per-rank-dir
+*       validation mode (NBODY_RANK0_IO=0): always .FALSE., so every
+*       rank performs the original full I/O.
+      LOGICAL  RANK0_IO
+      COMMON /MPIIOG/ RANK0_IO

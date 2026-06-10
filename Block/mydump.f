@@ -12,6 +12,8 @@
      &    NBS6=6,NBS7=2)
       REAL*4  A,B,C,D,E,G,L,M,O,P,Q,S
       INTEGER K,I,NTSAVE
+      LOGICAL NBODY_IORANK
+      EXTERNAL NBODY_IORANK
 *
       COMMON/NAMES/  NTOT,NPAIRS,NTTOT,A(NA)
       COMMON/COUNTS/ B(NB)
@@ -53,6 +55,15 @@
      &               KSLOW(KMAX),NAME(NMAX),LIST(LMAX,NMAX)
 *
       COMMON/SPIN2/  SPN(NMAX), ASPN(NMAX)
+*
+*       Path B rank-0 I/O guard: with the broad guard active only rank 0
+*       writes the COMMON dump (every rank holds identical replicated
+*       state, so rank 0's fort.J is canonical and a multi-rank write
+*       race on a shared file is avoided). This covers ALL save call
+*       sites (ADJUST, INTGRT timer, end-of-run). The read path (II = 0,
+*       restart) still executes on every rank. Serial / AMUSE builds:
+*       NBODY_IORANK() is always .TRUE., i.e. the original behaviour.
+      IF (II.NE.0 .AND. .NOT.NBODY_IORANK()) RETURN
 *
 *       Open unit #J by reading dummy and rewinding.
       REWIND J

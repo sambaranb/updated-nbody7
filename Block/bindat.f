@@ -13,6 +13,8 @@
       LOGICAL  FIRST
       SAVE  FIRST
       DATA  FIRST /.TRUE./
+      LOGICAL  NBODY_IORANK
+      EXTERNAL NBODY_IORANK
 *
 *
 *       Decide between regularized and/or soft binaries (#9 <= 2 for KS).
@@ -141,7 +143,11 @@
 *
 *       Write formatted data bank on unit 9.
       IF (FIRST) THEN
-          OPEN (UNIT=9,STATUS='NEW',FORM='FORMATTED',FILE='OUT9')
+          IF (NBODY_IORANK()) THEN
+              OPEN (UNIT=9,STATUS='NEW',FORM='FORMATTED',FILE='OUT9')
+          ELSE
+              CALL NBODY_NULL_OPEN(9,'FORMATTED')
+          END IF
           FIRST = .FALSE.
       END IF
 *

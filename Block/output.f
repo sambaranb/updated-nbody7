@@ -26,6 +26,8 @@
       logical cout
       SAVE  FIRST,SECOND,THIRD,fourth
       DATA  FIRST,SECOND,THIRD,fourth/.TRUE.,.TRUE.,.TRUE.,.TRUE./
+      LOGICAL  NBODY_IORANK
+      EXTERNAL NBODY_IORANK
 *
 *
 *       Obtain energy error in case routine ADJUST not called recently.
@@ -460,7 +462,11 @@
 *
 *       Split into WRITE (3) NTOT & WRITE (3) ..  if disc instead of tape.
       IF (FIRST) THEN
-          OPEN (UNIT=3,STATUS='NEW',FORM='UNFORMATTED',FILE='OUT3')
+          IF (NBODY_IORANK()) THEN
+              OPEN (UNIT=3,STATUS='NEW',FORM='UNFORMATTED',FILE='OUT3')
+          ELSE
+              CALL NBODY_NULL_OPEN(3,'UNFORMATTED')
+          END IF
           FIRST = .FALSE.
       END IF
       NK = 20
@@ -470,7 +476,11 @@
      &           (NAME(J),J=1,NTOT), (KSTAR(J),J=1,NTOT)
 *******
       if (fourth) then
-          open (unit=120,status='NEW',file='CMPACT')
+          IF (NBODY_IORANK()) THEN
+              open (unit=120,status='NEW',file='CMPACT')
+          ELSE
+              CALL NBODY_NULL_OPEN(120,'FORMATTED')
+          END IF
           fourth = .FALSE.
       end if
 *
@@ -532,7 +542,12 @@
 *       Produce output file for tidal tail members.
    99 IF (KZ(3).LE.3) THEN
           IF (SECOND) THEN
-             OPEN (UNIT=33,STATUS='NEW',FORM='UNFORMATTED',FILE='OUT33')
+             IF (NBODY_IORANK()) THEN
+                 OPEN (UNIT=33,STATUS='NEW',FORM='UNFORMATTED',
+     &                 FILE='OUT33')
+             ELSE
+                 CALL NBODY_NULL_OPEN(33,'UNFORMATTED')
+             END IF
              SECOND = .FALSE.
           END IF
           NK = 13
@@ -568,7 +583,12 @@
 *       Include all stars in same file (KZ(3) > 3; astrophysical units). 
       IF (KZ(3).GT.3.AND.NTAIL.GT.0) THEN
           IF (THIRD) THEN
-              OPEN (UNIT=34,STATUS='NEW',FORM='FORMATTED',FILE='OUT34')
+              IF (NBODY_IORANK()) THEN
+                  OPEN (UNIT=34,STATUS='NEW',FORM='FORMATTED',
+     &                  FILE='OUT34')
+              ELSE
+                  CALL NBODY_NULL_OPEN(34,'FORMATTED')
+              END IF
               THIRD = .FALSE.
           END IF
           NP = 0

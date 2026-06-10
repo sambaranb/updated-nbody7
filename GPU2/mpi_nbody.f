@@ -9,9 +9,15 @@
 *       Public API:
 *         NBODY_MPI_INIT      - start MPI, duplicate COMM_WORLD, set rank/size
 *         NBODY_MPI_FINALIZE  - finalize MPI (only if we started it)
+*         NBODY_IORANK        - .TRUE. if this rank performs file output
+*         NBODY_NULL_OPEN     - connect a unit to /dev/null (ranks > 0)
+*         NBODY_STOP_PROBE    - rank-0 probe of the STOP file + broadcast
+*         NBODY_BCAST_R8      - broadcast one REAL*8 from rank 0
 *
 *       /MPICOMM/ (mpi_nbody.h) carries NBODY_COMM, MYRANK, NRANKS,
-*       IS_PARALLEL to the integrator.
+*       IS_PARALLEL to the integrator; /MPIIOG/ carries the RANK0_IO
+*       broad I/O-guard flag (production hardening: all ranks may share
+*       one working directory because only rank 0 writes output).
 *
 *       SAVE'd flag so FINALIZE only tears down a world this process created
 *       (the AMUSE worker may MPI_INIT the world itself, later integration).
@@ -25,6 +31,8 @@
       LOGICAL  WE_INIT
       COMMON /MPILIFE/ WE_INIT
       SAVE   /MPILIFE/
+      CHARACTER*16  ENVVAL
+      INTEGER  ENVLEN, ENVSTA
 *
 *       Start MPI only if no one else already did (safe under AMUSE spawn).
       CALL MPI_INITIALIZED(IFLAG, IERR)
@@ -42,10 +50,146 @@
       CALL MPI_COMM_SIZE(NBODY_COMM, NRANKS, IERR)
       IS_PARALLEL = (NRANKS.GT.1)
 *
+*       Broad rank-0 I/O guard: default ON for np > 1 so all ranks can
+*       share one working directory (only rank 0 writes the output files
+*       and stdout). Set NBODY_RANK0_IO=0 to disable (per-rank-dir
+*       validation mode, where every rank's run.out is compared).
+      RANK0_IO = IS_PARALLEL
+      CALL GET_ENVIRONMENT_VARIABLE('NBODY_RANK0_IO',ENVVAL,ENVLEN,
+     &                              ENVSTA)
+      IF (ENVSTA.EQ.0.AND.ENVLEN.GT.0) THEN
+          IF (ENVVAL(1:1).EQ.'0') RANK0_IO = .FALSE.
+      END IF
+      IF (RANK0_IO.AND.MYRANK.GT.0) CALL NBODY_MPI_IO_GUARD
+*
       IF (MYRANK.EQ.0) THEN
           WRITE (6,10)  NRANKS
    10     FORMAT (/,9X,'NBODY7 internal MPI active:  NRANKS =',I5)
+          IF (RANK0_IO.AND.IS_PARALLEL) WRITE (6,11)
+   11     FORMAT (9X,'Rank-0 I/O guard active (shared run directory; ',
+     &               'disable with NBODY_RANK0_IO=0)')
           CALL FLUSH(6)
+      END IF
+*
+      RETURN
+      END
+*
+************************************************************************
+      SUBROUTINE NBODY_MPI_IO_GUARD
+*
+*       Broad rank-0 I/O guard, executed once on every rank > 0 when the
+*       guard is active. Connects stdout (unit 6, which also catches
+*       PRINT * / WRITE (*,...)) and every output unit of the NBODY7
+*       link set to /dev/null, so the replicated WRITEs of ranks > 0 are
+*       discarded and all ranks can run in ONE shared directory without
+*       fort.* write races. Stderr (unit 0) is left untouched so genuine
+*       runtime errors remain visible from any rank.
+*
+*       The unit lists were enumerated from every WRITE/OPEN statement of
+*       the mpi-cpu link set (Block + ARchain/ARint + GPU2 overrides).
+*       Units that are READ during the run are EXCLUDED and stay live on
+*       every rank (replicated input): 5 (stdin, incl. the lazy mid-run
+*       ksint/chain reads), 10 (fort.10 initial conditions), 12 (instar),
+*       222 (input_bse), and 1/2 (MYDUMP restart reads; their save path
+*       is rank-0-guarded inside mydump.f). Units with an explicit
+*       OPEN(FILE=...) site are ALSO redirected here for the implicit
+*       writes that may precede the OPEN; the OPEN sites themselves
+*       re-connect ranks > 0 to /dev/null with the proper FORM via
+*       NBODY_NULL_OPEN (units 3/33/82/83 are unformatted there).
+      INTEGER  NFMT, NUNF, K
+      PARAMETER  (NFMT=81, NUNF=2)
+      INTEGER  UFMT(NFMT), UUNF(NUNF)
+      DATA UFMT /3,4,7,8,9,11,13,14,15,16,17,18,19,20,
+     &           22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,
+     &           38,39,40,41,42,43,44,45,46,47,48,49,
+     &           50,51,52,53,54,55,56,57,
+     &           66,71,73,75,76,77,80,81,84,85,86,87,88,89,
+     &           91,92,93,94,95,96,97,98,99,
+     &           120,571,572,575,576,821,831,991,992/
+      DATA UUNF /82,83/
+*
+      CALL NBODY_NULL_OPEN(6,'FORMATTED')
+      DO 10 K = 1,NFMT
+          CALL NBODY_NULL_OPEN(UFMT(K),'FORMATTED')
+   10 CONTINUE
+      DO 20 K = 1,NUNF
+          CALL NBODY_NULL_OPEN(UUNF(K),'UNFORMATTED')
+   20 CONTINUE
+*
+      RETURN
+      END
+*
+************************************************************************
+      LOGICAL FUNCTION NBODY_IORANK()
+*
+*       .TRUE. if this rank performs file output: rank 0 always, every
+*       rank when the broad I/O guard is off (serial / AMUSE builds and
+*       the NBODY_RANK0_IO=0 per-rank-dir validation mode). Call sites
+*       guard the explicit OPEN(FILE=...) statements of output files and
+*       the MYDUMP save path.
+      INCLUDE 'mpi_nbody.h'
+*
+      NBODY_IORANK = (MYRANK.EQ.0 .OR. .NOT.RANK0_IO)
+*
+      RETURN
+      END
+*
+************************************************************************
+      SUBROUTINE NBODY_NULL_OPEN(IU,FRM)
+*
+*       Connect unit IU to /dev/null with the requested FORM. CLOSE
+*       first: re-OPENing a connected unit with a different FORM is not
+*       a changeable mode, so the unit must be disconnected in between
+*       (the guard pre-connects everything FORMATTED; the unformatted
+*       OPEN sites then switch their unit here).
+      INTEGER  IU, IOS
+      CHARACTER*(*)  FRM
+*
+      CLOSE (UNIT=IU,IOSTAT=IOS)
+      OPEN (UNIT=IU,FILE='/dev/null',STATUS='OLD',FORM=FRM,IOSTAT=IOS)
+*
+      RETURN
+      END
+*
+************************************************************************
+      SUBROUTINE NBODY_STOP_PROBE(IO)
+*
+*       Manual-termination probe (dummy file STOP in the run directory).
+*       Only rank 0 touches the file and the result is broadcast, so all
+*       ranks take the SAME termination branch: with every rank probing
+*       independently (the old code), a STOP file appearing between two
+*       ranks' probes desynchronises the replicated control flow and the
+*       next collective deadlocks. IO = 0 means the STOP file exists.
+      INCLUDE 'mpi_nbody.h'
+      INCLUDE 'mpif.h'
+      INTEGER  IO, IERR
+*
+      IF (MYRANK.EQ.0) THEN
+          OPEN (99,FILE='STOP',STATUS='OLD',FORM='FORMATTED',IOSTAT=IO)
+          IF (IO.EQ.0) CLOSE (99)
+      END IF
+      IF (NRANKS.GT.1) THEN
+          CALL MPI_BCAST(IO,1,MPI_INTEGER,0,NBODY_COMM,IERR)
+      END IF
+*
+      RETURN
+      END
+*
+************************************************************************
+      SUBROUTINE NBODY_BCAST_R8(X)
+*
+*       Broadcast one REAL*8 from rank 0 (no-op on a single rank). Used
+*       for the per-rank CPU clock in INTGRT's timer check: the ranks'
+*       own CPU times differ slightly, so near the CPU limit a split
+*       TCOMP < CPU decision would deadlock the collectives; rank 0's
+*       clock decides for everyone.
+      INCLUDE 'mpi_nbody.h'
+      INCLUDE 'mpif.h'
+      REAL*8  X
+      INTEGER  IERR
+*
+      IF (NRANKS.GT.1) THEN
+          CALL MPI_BCAST(X,1,MPI_DOUBLE_PRECISION,0,NBODY_COMM,IERR)
       END IF
 *
       RETURN

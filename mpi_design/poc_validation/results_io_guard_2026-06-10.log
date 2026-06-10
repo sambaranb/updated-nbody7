@@ -1,0 +1,100 @@
+================================================================================
+PATH B production hardening: broad rank-0 I/O guard (shared run directory)
+================================================================================
+Date     : 2026-06-10
+Branch   : mpi-parallel
+Binary   : GPU2/run_versions/nbody7b.mpi-cpu  (pure-MPI, OMP_NUM_THREADS=1)
+Harness  : mpi_design/poc_validation/run_io_guard.sh   (new, shared-dir np4)
+           mpi_design/poc_validation/run_equiv.sh      (per-rank-dir, guard off)
+Input    : input_short (13049-body BSE run to END RUN,
+           standalone_version/test_cpu_with_bse ICs)
+
+WHAT CHANGED  (closes the "broad-I/O deferred item" of commit 586cd98)
+  Before: every rank replicated every WRITE, so a multi-rank run REQUIRED the
+  per-rank-directory wrapper (run_equiv.sh wrap.sh) to avoid fort.* write
+  races. Now `mpirun -np N` is safe in ONE shared working directory: with the
+  guard at its production default (np > 1, NBODY_RANK0_IO unset) only rank 0
+  writes the output files and stdout.
+
+  Mechanism (validated empirically with the Amuse-env gfortran: 85+
+  simultaneous unit connections to /dev/null, unit-6 re-OPEN, CLOSE +
+  re-OPEN with a different FORM):
+  - Ncode/mpi_nbody.h      : + /MPIIOG/ RANK0_IO guard flag.
+  - GPU2/mpi_nbody.f       : NBODY_MPI_INIT reads NBODY_RANK0_IO (default ON
+    for np>1) and on ranks > 0 calls NBODY_MPI_IO_GUARD, which connects unit 6
+    and the 83 write-only units of the link set (81 formatted + 82/83
+    unformatted) to /dev/null. Units that are READ during the run stay live on
+    every rank: 5 (stdin incl. lazy mid-run ksint/chain reads), 10 (fort.10
+    ICs), 12 (instar), 222 (input_bse), 1/2 (restart reads).
+    + NBODY_IORANK() (does this rank do file output), NBODY_NULL_OPEN
+    (re-connect a unit to /dev/null with the right FORM), NBODY_STOP_PROBE
+    (rank 0 probes the STOP file, MPI_BCAST of the result -- independent
+    probes of a shared STOP file could split across ranks and deadlock the
+    next collective), NBODY_BCAST_R8 (rank 0's CPU clock decides the
+    TCOMP < CPU termination branch for all ranks -- per-rank CPU times drift,
+    a split decision would deadlock).
+  - GPU2/mpi_nbody_stub.f  : serial counterparts (NBODY_IORANK always .TRUE.,
+    NBODY_STOP_PROBE = the original local probe, BCAST no-op) -> serial and
+    AMUSE builds keep the exact original behaviour.
+  - GPU2/intgrt.omp.f      : STOP-file probe + CPU-limit check go through the
+    two new collectives-safe helpers (timer path, every NMAX steps -> cheap).
+  - Block/mydump.f         : save path (II != 0) returns early on non-I/O
+    ranks; covers ALL dump call sites (ADJUST fort.2 + fort.1, INTGRT timer,
+    end-of-run). Read path (restart) unchanged on every rank. The bespoke
+    MYRANK guard added to GPU2/adjust.f by 586cd98 is superseded and removed.
+  - 17 explicit OPEN(FILE=...) output sites (OUT3/OUT9/OUT33/OUT34/CMPACT/
+    ESC/COLL/COAL/COAL2/MDOT/BINEV/HIARCH/HIDAT/DEGEN/NS/BH/ROCHE + hrplot
+    fort.82/83) in 14 Block files: ranks > 0 connect the unit to /dev/null
+    via NBODY_NULL_OPEN instead of opening the shared file (STATUS='NEW'
+    would also crash on a shared existing file).
+  - GPU2/scale.f, Block/setup.f : the KZ(22)=1 IC write to unit 10 is rank-0
+    only (fort.10 is the shared IC INPUT file of every rank).
+  - GPU2/irrlib/gpuirr.cpp : NBSTAT (neighbour-histogram diagnostic written by
+    gpuirr_close via C fopen, out of reach of the Fortran guard) is skipped on
+    ranks > 0, detected from the launcher env (OMPI/PMIX/PMI/SLURM rank vars),
+    honouring the same NBODY_RANK0_IO=0 opt-out.
+
+VALIDATION (M4 Pro, Amuse-env, OMP_NUM_THREADS=1)
+
+1. run_io_guard.sh -- np4, ONE shared directory, guard ON (production default),
+   vs np1 reference in its own directory:                              PASS
+   - mpirun exit 0, END RUN reached, guard banner present;
+   - ADJUST / END RUN physics lines bit-identical to np1 (WTIME stripped);
+   - END RUN appears exactly ONCE in run.out (ranks > 0 fully silenced);
+   - file inventory of the shared dir IDENTICAL to the np1 run (20 files,
+     no stray rank>0 fort.*);
+   - every output file byte-identical to np1: OUT3, OUT33, CMPACT, fort.14,
+     fort.31, fort.32, fort.52, fort.56, fort.82, fort.83, fort.821,
+     fort.831, fort.99, fort.991, fort.992;
+   - fort.1 / fort.2 (COMMON dumps): same size (11106656 B), 10 differing
+     bytes = the CPU/wall-time accumulators of COMMON/COUNTS/ in record 1
+     (differ between ANY two runs, serial included);
+   - NBSTAT present once (per-process diagnostic; at np>1 its histogram
+     covers rank 0's irregular-force slice only -- documented behaviour).
+
+2. run_equiv.sh (now exports NBODY_RANK0_IO=0 in wrap.sh) -- per-rank dirs,
+   guard OFF, np 1/2/4:                                                PASS
+   bit-identical ADJUST + END RUN lines across np1/np2(2 ranks)/np4(4 ranks),
+   i.e. the legacy validation mode is preserved and physics is untouched.
+
+3. Serial / AMUSE regression: `make cpu-objects` (the AMUSE worker's compile
+   path, links mpi_nbody_stub.o) builds clean; stub defines nbody_iorank_,
+   nbody_null_open_, nbody_stop_probe_, nbody_bcast_r8_ so all shared call
+   sites resolve. RANK0_IO is statically .FALSE. in serial builds -> original
+   I/O instruction stream. (The `make cpu` THROWAWAY LINK fails on macOS with
+   the pre-existing -lstdc++ SDK quirk noted in 01_data_distribution.md §9 --
+   unrelated to this change; the AMUSE build avoids it via cpu-objects.)
+
+PRODUCTION USAGE NOTES
+  - Single shared directory:  mpirun -np 8 bash -c 'exec ./nbody7b.mpi-cpu \
+    < input'  (the exec-with-redirect gives EVERY rank the input on stdin;
+    plain `mpirun ... < input` forwards stdin to rank 0 only, and NBODY7
+    performs lazy mid-run unit-5 reads on every rank. `mpirun --stdin all`
+    is the alternative where supported.)
+  - STOP-file termination now works correctly in a shared directory (rank-0
+    probe + broadcast); with per-rank dirs (guard off) touch STOP in rank 0's
+    dir -- it now governs all ranks.
+  - NBODY_RANK0_IO=0 restores the old every-rank-writes behaviour (use with
+    per-rank directories, e.g. for cross-rank bit-identity validation).
+  - Restart dumps fort.1/fort.2 are written by rank 0 only (canonical,
+    replicated state); on restart every rank reads the same fort.1.

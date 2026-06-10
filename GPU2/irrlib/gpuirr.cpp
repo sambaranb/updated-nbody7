@@ -2,7 +2,26 @@
 #include <algorithm>
 #include <vector>
 #include <cassert>
+#include <cstdlib>
 #include "vector3.h"
+
+/* Path B broad rank-0 I/O guard (mirrors GPU2/mpi_nbody.f): with NBODY7's
+   internal MPI active and the guard at its production default, only rank 0
+   writes output files so all ranks can share one working directory. The
+   Fortran-side guard cannot reach this library's fopen, so the MPI rank is
+   detected from the launcher environment (Open MPI / PMIx / MPICH / Slurm)
+   and the same NBODY_RANK0_IO=0 opt-out is honoured (per-rank-dir
+   validation mode, where every rank keeps its own NBSTAT). Serial and
+   AMUSE runs: no rank variable, or rank 0 -> write as before. */
+static bool io_rank0_guarded(){
+	const char *toggle = getenv("NBODY_RANK0_IO");
+	if(toggle && toggle[0] == '0') return false;
+	const char *rank = getenv("OMPI_COMM_WORLD_RANK");
+	if(!rank) rank = getenv("PMIX_RANK");
+	if(!rank) rank = getenv("PMI_RANK");
+	if(!rank) rank = getenv("SLURM_PROCID");
+	return rank && atoi(rank) > 0;
+}
 
 #define _out_
 #define PROFILE
@@ -102,12 +121,17 @@ static void gpuirr_open(
 }
 
 static void gpuirr_close(){
-	FILE *fp = fopen("NBSTAT", "w");
-	fprintf(fp, "   #NB   #CALL\n"); 
-	for(int i=0; i<NBlist::NB_MAX; i++){
-		fprintf(fp, "%6d%8d\n", i, counter[i]);
+	/* NBSTAT is a per-process neighbour-count histogram: at np > 1 each
+	   rank only counts the irregular calls of its own block slice, so
+	   ranks > 0 must not clobber rank 0's file in a shared directory. */
+	if(!io_rank0_guarded()){
+		FILE *fp = fopen("NBSTAT", "w");
+		fprintf(fp, "   #NB   #CALL\n");
+		for(int i=0; i<NBlist::NB_MAX; i++){
+			fprintf(fp, "%6d%8d\n", i, counter[i]);
+		}
+		fclose(fp);
 	}
-	fclose(fp);
 
 	const double Gflops = 60.0 * double(num_inter) * 1.e-9 / time_grav;
 

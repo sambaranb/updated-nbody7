@@ -302,3 +302,44 @@ gives **serial cpu == mpi np=1 == np=2 == np=4**, bit-identical ADJUST + END RUN
 diagnostics, all ranks reaching END RUN. Caveat unchanged: bit-identicality is a
 pure-MPI (one OpenMP thread/rank) guarantee; hybrid MPI+OpenMP inherits the
 `start.f` FPOLY2 external-field non-determinism documented at `GPU2/start.f:185`.
+
+---
+
+## 11. Production hardening — broad rank-0 I/O guard (2026-06-10)
+
+Closes the "broad-I/O deferred item" of commit `586cd98`. Before: every rank
+replicated every WRITE, so multi-rank runs **required** the per-rank-directory
+wrapper to avoid `fort.*` write races. Now `mpirun -np N` is safe in **one
+shared working directory**: with the guard at its production default (np > 1,
+`NBODY_RANK0_IO` unset) only rank 0 writes the output files and stdout;
+ranks > 0 have unit 6 and the 83 write-only units of the link set connected to
+`/dev/null` (`NBODY_MPI_IO_GUARD` in `mpi_nbody.f`, applied inside
+`NBODY_MPI_INIT`). Units that are READ during the run stay live on every rank
+(5 = stdin incl. the lazy mid-run ksint/chain reads, 10 = fort.10 ICs, 12,
+222 = input_bse, 1/2 = restart reads; `MYDUMP`'s save path is rank-0-guarded
+internally, covering all dump call sites). The 17 explicit `OPEN(FILE=...)`
+output sites redirect ranks > 0 via `NBODY_NULL_OPEN` (a shared `STATUS='NEW'`
+open would also crash); `NBSTAT` (C `fopen` in `irrlib/gpuirr.cpp`) detects the
+rank from the launcher environment. Two collectives-safety fixes ride along on
+the INTGRT timer path: the STOP-file probe is now rank-0 + `MPI_BCAST`
+(`NBODY_STOP_PROBE` — independent probes of a shared STOP file could split
+across ranks and deadlock), and rank 0's CPU clock decides the `TCOMP < CPU`
+termination branch (`NBODY_BCAST_R8`).
+
+`NBODY_RANK0_IO=0` restores the old every-rank-writes behaviour (the per-rank
+-dir validation mode; `run_equiv.sh` / `profile_scaling.sh` now export it).
+Serial / AMUSE builds: stub `NBODY_IORANK()` is always `.TRUE.`, `RANK0_IO`
+statically `.FALSE.` — the original serial I/O instruction stream.
+
+**Validation (2026-06-10, `results_io_guard_2026-06-10.log`):** new
+`run_io_guard.sh` — np4 in ONE shared dir vs np1 reference: END RUN once,
+physics lines bit-identical, file inventory identical, every output file
+byte-identical (fort.1/fort.2 same-size with only the COMMON/COUNTS timing
+bytes differing, as between any two runs). `run_equiv.sh` (guard off,
+per-rank dirs): bit-identical np 1/2/4 unchanged. `cpu-objects` (AMUSE
+worker path) builds clean.
+
+**Production stdin note:** give every rank the input via
+`mpirun -np 8 bash -c 'exec ./nbody7b.mpi-cpu < input'` (plain
+`mpirun ... < input` forwards stdin to rank 0 only; NBODY7 lazily reads
+unit 5 mid-run on every rank), or `mpirun --stdin all` where supported.

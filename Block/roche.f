@@ -33,6 +33,8 @@
       SAVE FIRST
       LOGICAL FIRST
       DATA FIRST /.TRUE./
+      LOGICAL  NBODY_IORANK
+      EXTERNAL NBODY_IORANK
 *
 *
 *       Set components & c.m. index and initialize counters & interval.
@@ -240,8 +242,12 @@
               END IF
 *
               IF(FIRST)THEN
-                 OPEN(UNIT=85,STATUS='NEW',FORM='FORMATTED',
-     &                FILE='ROCHE')
+                 IF (NBODY_IORANK()) THEN
+                     OPEN(UNIT=85,STATUS='NEW',FORM='FORMATTED',
+     &                    FILE='ROCHE')
+                 ELSE
+                     CALL NBODY_NULL_OPEN(85,'FORMATTED')
+                 END IF
                  FIRST = .FALSE.
                  WRITE (85,94)
    94            FORMAT (/,' NAM1  NAM2  K1 K2   TPHYS     AGE1     ',

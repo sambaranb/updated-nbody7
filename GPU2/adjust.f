@@ -422,14 +422,12 @@
    65     FORMAT (//,9X,'END RUN',3X,'TIME =',F8.1,'  CPUTOT =',F7.1,
      &                  '  ERRTOT =',F10.6,'  DETOT =',F10.6,
      &                  '  WTOT =',F7.1)
-*       Path B (internal MPI): only rank 0 writes the restart dump -- every rank
-*       holds identical replicated state, so rank 0's fort.1 is canonical and
-*       this avoids a multi-rank fort.1 write race. The END RUN banner above is
-*       left on EVERY rank, consistent with all the other replicated ADJUST
-*       diagnostics and with what equiv_check.py compares cross-rank; a full
-*       rank-0-only stdout guard remains the separate broad-I/O deferred item.
-*       Serial / AMUSE builds have MYRANK=0 -> unchanged.
-          IF (MYRANK.EQ.0.AND.KZ(1).GT.0.AND.NSUB.EQ.0) CALL MYDUMP(1,1)
+*       Path B (internal MPI): the restart dump is rank-0-guarded INSIDE
+*       MYDUMP itself (covering every save call site); the END RUN banner is
+*       written by every rank but lands in /dev/null on ranks > 0 when the
+*       broad rank-0 I/O guard is active (or in the per-rank run.out that
+*       equiv_check.py compares cross-rank when it is disabled).
+          IF (KZ(1).GT.0.AND.NSUB.EQ.0) CALL MYDUMP(1,1)
 *
 *       Close the libraries.
           CALL GPUNB_CLOSE

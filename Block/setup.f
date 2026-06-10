@@ -5,6 +5,8 @@
 *       -----------------------------------------------
 *
       INCLUDE 'common6.h'
+      LOGICAL  NBODY_IORANK
+      EXTERNAL NBODY_IORANK
       PARAMETER (A0=1.0D0)
       REAL*8  RAN2,A(8)
 *
@@ -94,12 +96,13 @@
               X(K,I) = SX*X(K,I)
               XDOT(K,I) = SV*XDOT(K,I)
    45     CONTINUE
-          IF (KZ(22).EQ.1) THEN
+*       Rank-0 only: fort.10 is the (shared) IC input file of every rank.
+          IF (KZ(22).EQ.1.AND.NBODY_IORANK()) THEN
               WRITE (10,48)  BODY(I), (X(K,I),K=1,3), (XDOT(K,I),K=1,3)
    48         FORMAT (1P,7E14.6)
           END IF
    50 CONTINUE
-      IF (KZ(22).EQ.1) CALL FLUSH(10)
+      IF (KZ(22).EQ.1.AND.NBODY_IORANK()) CALL FLUSH(10)
 *
 *       Terminate standard cases (#5 <=1) or Jaffee/BH (#5 >= 5 label 52).
       IF (KZ(5).LE.1.OR.KZ(5).GE.5) GO TO 200

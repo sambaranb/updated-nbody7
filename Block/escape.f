@@ -13,6 +13,8 @@
       LOGICAL  FIRST
       SAVE  FIRST
       DATA  FIRST /.TRUE./
+      LOGICAL  NBODY_IORANK
+      EXTERNAL NBODY_IORANK
 *
 *
 *       Adopt twice the tidal radius as escape condition.
@@ -179,7 +181,12 @@
 *       Include optional escape output on unit 11.
       IF (KZ(23).GT.1) THEN
           IF (FIRST) THEN
-              OPEN (UNIT=11,STATUS='NEW',FORM='FORMATTED',FILE='ESC')
+              IF (NBODY_IORANK()) THEN
+                  OPEN (UNIT=11,STATUS='NEW',FORM='FORMATTED',
+     &                  FILE='ESC')
+              ELSE
+                  CALL NBODY_NULL_OPEN(11,'FORMATTED')
+              END IF
               FIRST = .FALSE.
           END IF
           TESC = TSCALE*TTOT

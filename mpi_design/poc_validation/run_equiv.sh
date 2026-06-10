@@ -42,6 +42,10 @@ cp "$EX/Fort.10" "$EX/input_bse" "$HERE/input_short" "$BIN" "$WORK/src/"
 cat > "$WORK/wrap.sh" <<EOF
 #!/bin/bash
 export OMP_NUM_THREADS=1   # pure-MPI: avoid the start.f OMP non-determinism caveat
+export NBODY_RANK0_IO=0    # per-rank-dir validation mode: every rank writes its own
+                           # run.out / fort.* so they can be compared cross-rank
+                           # (production default is the broad rank-0 I/O guard,
+                           # which silences ranks > 0; see run_io_guard.sh)
 r=\${OMPI_COMM_WORLD_RANK:-0}
 d="$WORK/\${NPTAG}_rank\$r"; rm -rf "\$d"; mkdir -p "\$d"; cd "\$d"
 ln -sf "$WORK/src/Fort.10" .; ln -sf "$WORK/src/input_bse" .

@@ -32,6 +32,7 @@ awk -v dtadj="$DTADJ" -v deltat="$DELTAT" -v tcrit="$TCRIT" \
 cat > "$WORK/wrap.sh" <<EOF
 #!/bin/bash
 export OMP_NUM_THREADS=1
+export NBODY_RANK0_IO=0    # per-rank-dir mode (each rank keeps its own outputs)
 r=\${OMPI_COMM_WORLD_RANK:-0}
 d="$WORK/\${NPTAG}_rank\$r"; rm -rf "\$d"; mkdir -p "\$d"; cd "\$d"
 ln -sf "$WORK/src/Fort.10" .; ln -sf "$WORK/src/input_bse" .

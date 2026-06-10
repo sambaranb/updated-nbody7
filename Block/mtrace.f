@@ -8,11 +8,17 @@
       LOGICAL  FIRST
       SAVE  FIRST
       DATA  FIRST /.TRUE./
+      LOGICAL  NBODY_IORANK
+      EXTERNAL NBODY_IORANK
 *
 *
 *       Open unit #14 the first time.
       IF (FIRST) THEN
-          OPEN (UNIT=14,STATUS='NEW',FORM='FORMATTED',FILE='MDOT')
+          IF (NBODY_IORANK()) THEN
+              OPEN (UNIT=14,STATUS='NEW',FORM='FORMATTED',FILE='MDOT')
+          ELSE
+              CALL NBODY_NULL_OPEN(14,'FORMATTED')
+          END IF
           FIRST = .FALSE.
 *
 *       Print cluster scaling parameters at start of the run.

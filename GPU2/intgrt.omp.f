@@ -704,16 +704,23 @@
 *     END IF
 *
 *       Include facility for termination of run (create dummy file STOP).
-      OPEN (99,FILE='STOP',STATUS='OLD',FORM='FORMATTED',IOSTAT=IO)
+*       Path B: rank 0 probes the file and broadcasts the result, so all
+*       ranks take the same branch (independent probes of a shared STOP
+*       file can split across ranks and deadlock the next collective).
+*       Serial / AMUSE builds: the stub performs the original local probe.
+      CALL NBODY_STOP_PROBE(IO)
       IF (IO.EQ.0) THEN
-          CLOSE (99)
           IF (NSUB.EQ.0)  WRITE (6,70)
    70     FORMAT  (/,9X,'TERMINATION BY MANUAL INTERVENTION')
           CPU = 0.0
       END IF
 *
 *       Repeat cycle until elapsed computing time exceeds the limit.
+*       Path B: rank 0's clock decides for every rank (per-rank CPU times
+*       drift slightly, so a split TCOMP < CPU decision would deadlock
+*       the collectives). No-op on a single rank and in serial builds.
       CALL CPUTIM(TCOMP)
+      CALL NBODY_BCAST_R8(TCOMP)
       IF (TCOMP.LT.CPU) GO TO 1
 *
 *       Do not terminate during triple, quad or chain regularization.

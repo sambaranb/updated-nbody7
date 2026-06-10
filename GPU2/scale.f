@@ -10,6 +10,8 @@
       real*8 G, M_sun, R_sun, pc, Km, Kmps
       real*8 mscale, lscale, vscale
       SAVE RSAVE,VSAVE,BSAVE
+      LOGICAL  NBODY_IORANK
+      EXTERNAL NBODY_IORANK
 *
 *       Define physical constants (consistent with IAU & routine UNITS).
       G = 6.6743D-08
@@ -376,7 +378,8 @@
       END IF
 *
 *       Check option for writing the initial conditions on unit #10.
-      IF (KZ(22).EQ.1) THEN
+*       Rank-0 only: fort.10 is the (shared) IC input file of every rank.
+      IF (KZ(22).EQ.1.AND.NBODY_IORANK()) THEN
           DO 85 I = 1,N
               WRITE (10,84)  BODY(I), (X(K,I),K=1,3), (XDOT(K,I),K=1,3)
    84         FORMAT (1P,7E14.6)

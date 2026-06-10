@@ -12,11 +12,17 @@
       SAVE  FIRST,TLAST,TTERM,RAP,TK0,LAST,IPRINT,NL
       DATA  FIRST /.TRUE./
       DATA  LAST,IPRINT  /200*0/
+      LOGICAL  NBODY_IORANK
+      EXTERNAL NBODY_IORANK
 *
 *
 *       Open unit #10 the first time.
       IF (FIRST) THEN
-          OPEN (UNIT=10,STATUS='NEW',FORM='FORMATTED',FILE='HIARCH')
+          IF (NBODY_IORANK()) THEN
+              OPEN (UNIT=10,STATUS='NEW',FORM='FORMATTED',FILE='HIARCH')
+          ELSE
+              CALL NBODY_NULL_OPEN(10,'FORMATTED')
+          END IF
           FIRST = .FALSE.
 *
 *       Print cluster scaling parameters at start of the run.

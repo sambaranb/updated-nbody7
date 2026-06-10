@@ -26,6 +26,8 @@
       SAVE  FIRST
       DATA  FIRST /.TRUE./
       DATA  rg2 /0.1d0/
+      LOGICAL  NBODY_IORANK
+      EXTERNAL NBODY_IORANK
 *
 *
 *       Define global indices with body #I1 being most evolved or most
@@ -342,7 +344,11 @@
 *
 *       Open unit #13 the first time.
       IF(FIRST.AND.IQCOLL.NE.3)THEN
-          OPEN (UNIT=13,STATUS='NEW',FORM='FORMATTED',FILE='COLL')
+          IF (NBODY_IORANK()) THEN
+              OPEN (UNIT=13,STATUS='NEW',FORM='FORMATTED',FILE='COLL')
+          ELSE
+              CALL NBODY_NULL_OPEN(13,'FORMATTED')
+          END IF
           FIRST = .FALSE.
 *
 *       Print cluster scaling parameters at start of the run.

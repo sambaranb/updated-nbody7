@@ -15,6 +15,8 @@
       LOGICAL FIRST
       SAVE FIRST
       DATA FIRST /.TRUE./
+      LOGICAL  NBODY_IORANK
+      EXTERNAL NBODY_IORANK
 *
 *
 *       Distinguish between chain and triple or quad case (ICH > 0 or = 0).
@@ -606,7 +608,11 @@
 *
 *       Open the second coalescence unit #26 first time.
       IF (FIRST.AND.(IQCOLL.EQ.3.OR.KSTARI.GE.10)) THEN
-          OPEN (UNIT=26,STATUS='NEW',FORM='FORMATTED',FILE='COAL2')
+          IF (NBODY_IORANK()) THEN
+              OPEN (UNIT=26,STATUS='NEW',FORM='FORMATTED',FILE='COAL2')
+          ELSE
+              CALL NBODY_NULL_OPEN(26,'FORMATTED')
+          END IF
           FIRST = .FALSE.
 *
 *       Print cluster scaling parameters at start of the run.

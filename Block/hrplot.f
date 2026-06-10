@@ -16,17 +16,27 @@
       logical out82, out83
       save out82, out83
       data out82, out83/.TRUE.,.TRUE./
+      LOGICAL  NBODY_IORANK
+      EXTERNAL NBODY_IORANK
 **********
 *
 *
 **********
       if (out82) then
-          open(UNIT=82, FORM='UNFORMATTED')
+          IF (NBODY_IORANK()) THEN
+              open(UNIT=82, FORM='UNFORMATTED')
+          ELSE
+              CALL NBODY_NULL_OPEN(82,'UNFORMATTED')
+          END IF
           out82 = .FALSE.
       end if
 *
       if (out83) then
-          open(UNIT=83, FORM='UNFORMATTED')
+          IF (NBODY_IORANK()) THEN
+              open(UNIT=83, FORM='UNFORMATTED')
+          ELSE
+              CALL NBODY_NULL_OPEN(83,'UNFORMATTED')
+          END IF
           out83 = .FALSE.
       end if
 **********
