@@ -1,0 +1,76 @@
+================================================================================
+LINUX VALIDATION + 16-CORE SCALING: internal-MPI mpi-cpu on gpudyn3
+================================================================================
+Date     : 2026-06-11
+Branch   : mpi-parallel (origin, post-C1 be3dd39)
+Host     : gpudyn3 -- Ubuntu, 2x Xeon Silver 4309Y (16 physical cores, SMT2 ->
+           nproc 32), 125 GB, system Open MPI 4.1.2 (/usr/bin/mpirun; no conda
+           env needed). Binary: GPU2/run_ampere/nbody7b.mpi-cpu (local
+           RUNDIR=run_ampere Makefile tweak).
+Baseline : results_c1_gpupot_2026-06-10.log (Mac M4 Pro, np<=8)
+
+PORTING FIXES (harness-only; no integrator code touched)
+  1. fort.10 case bug: the harnesses staged the IC file as `Fort.10`, but
+     READ (10,*) in Block/data.f binds to gfortran's implicit unit-10 name,
+     lowercase `fort.10`. The Mac's case-insensitive FS masked this; on Linux
+     every rank opened a freshly created EMPTY fort.10 and died at EOF
+     (data.f:78). All four harnesses now stage the file as lowercase fort.10
+     (identical resolution on the Mac).
+  2. Hardcoded Mac paths: ROOT is now derived from the script location
+     (overridable via ROOT=), and BIN auto-detected under GPU2/run_*/
+     (overridable via BIN=), so run_versions vs run_ampere both work.
+  3. run_equiv.sh: FAIL early if the np1 reference itself is empty
+     (previously an np1 crash surfaced as confusing per-rank EMPTY lines).
+  4. extract() in run_equiv.sh / run_io_guard.sh now also strips the
+     CPUTOT/WTOT accumulators from the END RUN line -- on the Mac they
+     matched only by rounding luck.
+  (Execute bits on the *.sh were lost in the pull; chmod +x restored.)
+
+BIT-IDENTITY (gate before any timing)
+  run_equiv.sh (13049-body BSE, per-rank dirs) : PASS -- np1/2/4, all ranks.
+  run_io_guard.sh (shared dir, guard ON, np4)  : PASS -- physics lines and
+    every output file byte-identical to the np1 reference (fort.1/fort.2:
+    same size, 12 differing bytes = timing fields, as documented).
+  N=5e4 attribution runs: np8/np16/np32 ADJUST + END RUN physics lines
+    bit-identical to np1 at both cadences (timer fields stripped).
+
+PHASE MATRIX (N=5e4 generated Plummer, run_phase_attr.sh, wall s, rank 0)
+
+  asis (DTADJ=0.2)        np1      np8     np16   np16bind  np32(SMT)
+  P2  predict             2.42     3.35     4.06     4.04     6.86
+  P3  irr force slice     9.07     1.56     1.12     1.08     1.44
+  P3c irr Allgather       0.00     0.71     1.58     0.93     2.22
+  P4  irr corrector       1.33     1.61     2.16     2.46     4.46
+  P7  reg force slice   117.24    15.12     8.16     8.18     8.16
+  P7c reg Allgather       0.00     0.82     1.20     1.21     1.99
+  A1  ENERGY2 (GPUPOT)   16.64     2.19     1.26     1.38     1.42
+  A2  ADJUST total       25.33    17.64    25.41    26.45    53.51
+  P12 OUTPUT              8.07     8.51     9.02     8.81    17.32
+  SUM all phases        164.69    51.16    55.23    55.70   101.21
+  phase-sum speedup       1.00     3.22x    2.98x    2.96x    1.63x
+
+  adj4x (DTADJ=0.05): np1 136.81, np8 40.77 (3.36x), np16 51.37 (2.66x).
+  Slice imbalance across ranks < 1% (np8: P7 15.03..15.16 s), as on the Mac.
+
+  np32 caveat: Open MPI defaults slots to PHYSICAL cores (16), so -np 32
+  needs --use-hwthread-cpus; measured once for completeness, strictly worse.
+
+FINDINGS
+  - The decomposed kernels keep scaling to all 16 physical cores:
+    P7 117.2 -> 8.16 s (14.4x at np16), A1/C1 16.6 -> 1.26 s (13.2x),
+    P3 9.07 -> 1.12 s (8.1x, Allgather-limited). C1 behaves on Linux exactly
+    as designed.
+  - END-TO-END SWEET SPOT AT N=5e4 IS np8 (3.2-3.4x); np16 is net-NEGATIVE
+    on this box. Cause: the REPLICATED memory-bound phases slow down as more
+    ranks run the same O(N) sweeps concurrently and share DRAM bandwidth --
+    A2-A1 residue 8.7 -> 15.4 -> 24.2 -> 52.1 s (np1->8->16->32), P2 and P4
+    grow the same way. --bind-to core changes nothing (np16bind == np16), so
+    it is bandwidth/cache contention, not rank migration. The M4 Pro's much
+    higher per-core memory bandwidth masked this tax; per-core compute here
+    is also ~2.6x slower than M4 Pro (np1: 164.7 vs 62.8 s).
+  - This IS the re-ranking the strategy doc deferred C2/C3 for: on a
+    bandwidth-limited host the next wins are the replicated predict /
+    corrector / ADJUST-bookkeeping sweeps (P2+P4+P9+A2residue = 22 s of the
+    np16 55 s SUM) and OUTPUT (9 s file I/O), not further O(N^2) splitting.
+    The GPU-build re-measurement (G2) remains the decision point.
+================================================================================

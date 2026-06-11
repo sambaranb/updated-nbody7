@@ -12,8 +12,10 @@
 # Usage: ./run_phase_attr.sh [workdir]      # default /tmp/nb7_phase_attr
 # -----------------------------------------------------------------------------
 set -u
-ROOT=/Users/sambaran/updated-nbody7
-BIN=$ROOT/GPU2/run_versions/nbody7b.mpi-cpu
+HERE=$(cd "$(dirname "$0")" && pwd)
+ROOT=${ROOT:-$(cd "$HERE/../.." && pwd)}
+# BIN override for hosts whose Makefile RUNDIR differs (e.g. run_ampere)
+BIN=${BIN:-$(ls "$ROOT"/GPU2/run_*/nbody7b.mpi-cpu 2>/dev/null | head -1)}
 EX=$ROOT/standalone_version/test_cpu_with_bse
 IN=$ROOT/mpi_design/poc_validation/input_gen_N50000_eq
 WORK=${1:-/tmp/nb7_phase_attr}
@@ -34,7 +36,8 @@ export NBODY_RANK0_IO=0
 export NBODY_PHASE_TIMERS=1
 r=\${OMPI_COMM_WORLD_RANK:-0}
 d="$WORK/\${TAG}_rank\$r"; rm -rf "\$d"; mkdir -p "\$d"; cd "\$d"
-ln -sf "$WORK/src/Fort.10" .; ln -sf "$WORK/src/input_bse" .
+# lowercase link: gfortran's implicit unit-10 name; Linux FS is case-sensitive
+ln -sf "$WORK/src/Fort.10" ./fort.10; ln -sf "$WORK/src/input_bse" .
 exec "$BIN" < "$WORK/src/\$INP" > run.out 2> err.out
 EOF
 chmod +x "$WORK/wrap.sh"

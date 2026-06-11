@@ -27,10 +27,11 @@
 # Allgatherv bug; forcing OMP_NUM_THREADS=1 removes it (see project memory).
 # -----------------------------------------------------------------------------
 set -u
-ROOT=/Users/sambaran/updated-nbody7
-BIN=$ROOT/GPU2/run_versions/nbody7b.mpi-cpu
-EX=$ROOT/standalone_version/test_cpu_with_bse
 HERE=$(cd "$(dirname "$0")" && pwd)
+ROOT=${ROOT:-$(cd "$HERE/../.." && pwd)}
+# BIN override for hosts whose Makefile RUNDIR differs (e.g. run_ampere)
+BIN=${BIN:-$(ls "$ROOT"/GPU2/run_*/nbody7b.mpi-cpu 2>/dev/null | head -1)}
+EX=$ROOT/standalone_version/test_cpu_with_bse
 WORK=${1:-/tmp/nb7_mpi_equiv}
 
 [ -x "$BIN" ] || { echo "missing $BIN  (build: cd GPU2 && make mpi-cpu CXX=\"\$CXX\")"; exit 1; }
@@ -48,7 +49,8 @@ export NBODY_RANK0_IO=0    # per-rank-dir validation mode: every rank writes its
                            # which silences ranks > 0; see run_io_guard.sh)
 r=\${OMPI_COMM_WORLD_RANK:-0}
 d="$WORK/\${NPTAG}_rank\$r"; rm -rf "\$d"; mkdir -p "\$d"; cd "\$d"
-ln -sf "$WORK/src/Fort.10" .; ln -sf "$WORK/src/input_bse" .
+# lowercase link: gfortran's implicit unit-10 name; Linux FS is case-sensitive
+ln -sf "$WORK/src/Fort.10" ./fort.10; ln -sf "$WORK/src/input_bse" .
 exec "$WORK/src/nbody7b.mpi-cpu" < "$WORK/src/input_short" > run.out 2> err.out
 EOF
 chmod +x "$WORK/wrap.sh"
@@ -58,8 +60,10 @@ for NP in 1 2 4; do
     NPTAG=np$NP timeout 300 mpirun -x NPTAG=np$NP -np $NP "$WORK/wrap.sh" >/dev/null 2>&1
 done
 
-extract(){ grep -E 'ADJUST:|END RUN' "$1" 2>/dev/null | sed -E 's/WTIME.*$//'; }
+# strip WTIME / CPUTOT / WTOT: wall+CPU accumulators differ between any two runs
+extract(){ grep -E 'ADJUST:|END RUN' "$1" 2>/dev/null | sed -E 's/WTIME.*$//; s/CPUTOT =[^A-Z]*//; s/WTOT =.*$//'; }
 extract "$WORK/np1_rank0/run.out" > "$WORK/ref.txt"
+[ -s "$WORK/ref.txt" ] || { echo ">>> FAIL: np1 reference empty (hang/crash) -- see $WORK/np1_rank0/{run,err}.out"; exit 1; }
 echo; echo "=== bit-identical check (reference = np1_rank0) ==="
 ok=1
 for d in "$WORK"/np2_rank* "$WORK"/np4_rank*; do

@@ -30,10 +30,11 @@
 # Usage:  ./run_io_guard.sh [workdir]        # default: /tmp/nb7_mpi_ioguard
 # -----------------------------------------------------------------------------
 set -u
-ROOT=/Users/sambaran/updated-nbody7
-BIN=$ROOT/GPU2/run_versions/nbody7b.mpi-cpu
-EX=$ROOT/standalone_version/test_cpu_with_bse
 HERE=$(cd "$(dirname "$0")" && pwd)
+ROOT=${ROOT:-$(cd "$HERE/../.." && pwd)}
+# BIN override for hosts whose Makefile RUNDIR differs (e.g. run_ampere)
+BIN=${BIN:-$(ls "$ROOT"/GPU2/run_*/nbody7b.mpi-cpu 2>/dev/null | head -1)}
+EX=$ROOT/standalone_version/test_cpu_with_bse
 WORK=${1:-/tmp/nb7_mpi_ioguard}
 
 [ -x "$BIN" ] || { echo "missing $BIN  (build: cd GPU2 && make mpi-cpu CXX=\"\$CXX\")"; exit 1; }
@@ -41,7 +42,9 @@ command -v mpirun >/dev/null || { echo "mpirun not on PATH -- conda activate Amu
 
 rm -rf "$WORK"; mkdir -p "$WORK/ref" "$WORK/shared"
 for d in ref shared; do
-    cp "$EX/Fort.10" "$EX/input_bse" "$HERE/input_short" "$WORK/$d/"
+    # lowercase fort.10: gfortran's implicit unit-10 name; Linux FS is case-sensitive
+    cp "$EX/Fort.10" "$WORK/$d/fort.10"
+    cp "$EX/input_bse" "$HERE/input_short" "$WORK/$d/"
 done
 
 run_one() {           # run_one <dir> <np>
@@ -59,7 +62,8 @@ echo "=== np4, ONE shared directory, rank-0 I/O guard ON (production default) ==
 RC4=$(run_one shared 4)
 echo "    exit code: $RC4"
 
-extract(){ grep -E 'ADJUST:|END RUN' "$1" 2>/dev/null | sed -E 's/WTIME.*$//'; }
+# strip WTIME / CPUTOT / WTOT: wall+CPU accumulators differ between any two runs
+extract(){ grep -E 'ADJUST:|END RUN' "$1" 2>/dev/null | sed -E 's/WTIME.*$//; s/CPUTOT =[^A-Z]*//; s/WTOT =.*$//'; }
 ok=1
 
 # 1. clean termination
@@ -96,7 +100,7 @@ else
     sed 's/^/      /' "$WORK/inv.diff"; ok=0
 fi
 while read -r f; do
-    [ "$f" = "Fort.10" -o "$f" = "input_bse" -o "$f" = "input_short" ] && continue
+    [ "$f" = "fort.10" -o "$f" = "input_bse" -o "$f" = "input_short" ] && continue
     case "$f" in
     fort.1|fort.2)
         # COMMON dumps embed the CPU/wall-time accumulators (COMMON/COUNTS/),
