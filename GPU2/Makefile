@@ -168,6 +168,22 @@ mpi-cpu: gpunb.cpu.o gpupot.cpu.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o s
 	make mpi-cpu -C ./$(BUILD) -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC="$(MPIFC)"
 	mv -f ./$(BUILD)/nbody6 $(RUNDIR)/$(BINNAME).mpi-cpu
 
+# MPI + CUDA variant `mpi-gpu' (Path B G0). The CUDA force/potential
+# libraries exactly as `gpu' (gpunb.velocity.cu + gpupot.gpu.cu, SSE
+# gpuirr), but linked with mpif90 and wired to the real MPI wrapper +
+# standalone MPI driver, exactly like `mpi-cpu'. Rank->device binding
+# happens inside GPUNB_devinit (lib/gpunb.velocity.cu):
+# devid[local_rank % numGPU], opt-out NBODY_GPU_RANK_BIND=0.
+# NOTE: variant targets alias gpunb.o/gpupot.o/cnbint.o/gpuirr.o via
+# cp -p, so run `make clean` when switching variants in the same tree.
+# Executable: $(RUNDIR)/$(BINNAME).mpi-gpu.
+mpi-gpu: gpunb.gpu.o gpupot.gpu.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o mpi_nbody.o nbody6_main_mpi.o | $(BUILD) $(RUNDIR)
+	cp -f gpunb.gpu.o gpunb.o
+	cp -f gpupot.gpu.o gpupot.o
+	cp -f *.o ./$(BUILD)
+	make mpi-gpu -C ./$(BUILD) -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC="$(MPIFC)" CUDA_PATH=$(CUDA_PATH)
+	mv -f ./$(BUILD)/nbody6 $(RUNDIR)/$(BINNAME).mpi-gpu
+
 # Same Stage-1 + Stage-2 object compilation as `cpu`, but stops before
 # the throwaway link of `nbody6`. Used by the AMUSE-nbody7 worker build
 # which archives the resulting Build/*.o into libnbody7.a and supplies

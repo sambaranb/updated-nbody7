@@ -1,0 +1,95 @@
+================================================================================
+G0: mpi-gpu BUILD TARGET + RANK->DEVICE BINDING + G1 ATTRIBUTION (1-GPU NODE)
+================================================================================
+Date     : 2026-06-11
+Branch   : mpi-parallel
+Host     : gpudyn3 -- A40 (sm_86), CUDA 12.5 (/usr/local/cuda), cuda-samples
+           at /usr/local/cuda-samples, system Open MPI 4.1.2, 16 physical
+           cores. Binary: GPU2/run_ampere/nbody7b.mpi-gpu.
+Build    : make clean && make mpi-gpu SDK_PATH=/usr/local/cuda-samples \
+           CUDA_PATH=/usr/local/cuda     (make clean REQUIRED when switching
+           variants in one tree: targets alias gpunb/gpupot/cnbint/gpuirr .o
+           names via cp -p, so stale aliases can survive timestamp checks)
+CPU ref  : results_gpudyn3_linux_2026-06-11.log (same day, same host/inputs)
+
+WHAT CHANGED (G0 was wiring, as predicted by the strategy doc)
+  GPU2/Makefile           : + mpi-gpu target -- the `gpu' object list
+    (gpunb.velocity.cu + gpupot.gpu.cu CUDA libs, SSE gpuirr, cnbint) with
+    the standalone main swapped for the MPI driver + real MPI wrapper,
+    exactly as mpi-cpu vs cpu. Fully additive; no shared-target edits.
+  GPU2/Makefile_cpu.build : + mpi-gpu link target (gpu link options:
+    -lstdc++ -fopenmp -lcudart; FC arrives as mpif90).
+  GPU2/lib/gpunb.velocity.cu : GPUNB_devinit now binds each MPI rank to ONE
+    device, devid[local_rank % numGPU] (launcher env detection --
+    OMPI_COMM_WORLD_LOCAL_RANK / MPI_LOCALRANKID / SLURM_LOCALID -- same
+    idea as the gpuirr.cpp rank-0 I/O guard; opt-out NBODY_GPU_RANK_BIND=0;
+    GPU_LIST still defines the pool). No launcher env -> path unchanged.
+    Covers gpupot.gpu.cu too (it inherits the device via gpunb_devinit_()).
+    Side benefit: pure-MPI (OMP_NUM_THREADS=1) on a multi-GPU node would
+    previously have died on assert(numGPU <= numCPU).
+  run_equiv.sh / profile_scaling.sh : wrap.sh now execs the actual
+    $(basename $BIN) instead of the hardcoded mpi-cpu name, so BIN=...
+    overrides test any variant.
+  NOTE gpuirr.sse.cpp needs NO rank-0 guard: it writes no files (NBSTAT is
+    a gpuirr.cpp-only diagnostic), stderr stays live by design.
+
+ACCEPTANCE (per 02_integration_serial_trim.md sect. 4.3: np1-gpu vs npK-gpu)
+  run_equiv.sh BIN=nbody7b.mpi-gpu : PASS -- np1/2/4 bit-identical, all
+    ranks. Smoke evidence per the variant-test rule: every rank's err.out
+    shows "Initializing NBODY6/GPU library / device 0: NVIDIA A40" and
+    "Opening GPUIRR lib. SSE ver."; np4 ranks each report #GPU 1 (bound).
+  run_io_guard.sh BIN=...mpi-gpu  : PASS -- np4 shared dir, every output
+    file byte-identical to the np1-gpu reference.
+  N=5e4 attribution: np8 ADJUST/END RUN physics bit-identical to np1-gpu
+    at both cadences. (gpu-vs-cpu builds differ as expected -- different
+    kernel summation; cross-build agreement is physics-level, per the doc.)
+  Multi-GPU placement (lrank % nGPU with nGPU > 1) is UNTESTED -- this is
+    a 1-GPU node; verify on a multi-GPU host when available.
+
+G1 ATTRIBUTION (N=5e4, wall s, rank 0; CPU columns from the same-day log)
+
+  asis (DTADJ=0.2)        gpu np1   gpu np8   cpu np1   cpu np8
+  P2  predict                2.99      2.50      2.42      3.35
+  P3  irr force slice       27.35      2.25      9.07      1.56
+  P3c irr Allgather          0.00      1.22      0.00      0.71
+  P7  reg force slice        0.26      1.78    117.24     15.12
+  P8  reg tail               2.13      1.43      0.81      1.22
+  A1  ENERGY2 (GPUPOT)       0.02      0.12     16.64      2.19
+  A2  ADJUST total           8.78     15.59     25.33     17.64
+  P12 OUTPUT                 8.11      8.41      8.07      8.51
+  SUM                       52.35     36.16    164.69     51.16
+  (adj4x: gpu np1 37.02, gpu np8 27.70; slice imbalance < 7%)
+
+FINDINGS -- Amdahl inverts on the GPU, exactly as the strategy doc predicted
+  1. The A40 erases the O(N^2) compute: P7 117.2 -> 0.26 s (450x), A1
+     16.6 -> 0.02 s. Wall clock is now ENTIRELY CPU/comm residue.
+  2. Best end-to-end config on this node: mpi-gpu np8 = 36.2 s -- 4.6x vs
+     cpu np1, 1.4x vs the previous best (mpi-cpu np8, 51.2 s). On a 1-GPU
+     node the MPI ranks' whole contribution is decomposing the CPU-side
+     phases (P3 27.3 -> 3.5 s incl. gather).
+  3. np8 sharing one A40 costs: P7 0.26 -> 1.78 s (8 ranks' kernel launches
+     + j-sends serialize on the device) and A1 0.02 -> 0.12 s (the C1
+     gpupot_range fallback runs the FULL O(N^2) potential per rank -- the
+     true ranged kernel is the G2 item, now measurable but tiny here).
+  4. NEW RESIDUE RANKING (gpu np8): A2-A1 ADJUST bookkeeping 15.5 s >>
+     OUTPUT 8.4 s >> P3 slice+gather 3.5 s > P2 2.5 s. The A2 growth vs
+     np1 (8.8 -> 15.6 s) is the same replicated-sweep DRAM contention seen
+     on mpi-cpu. ADJUST internals + OUTPUT are now 2/3 of the np8 wall.
+  5. SURPRISE -- gpuirr library choice: the gpu/mpi-gpu variants link the
+     hand-SSE gpuirr.sse.cpp (P3 np1 = 27.3 s); mpi-cpu links the scalar
+     gpuirr.cpp which gcc -march=native auto-vectorizes (AVX-512 on this
+     Xeon: P3 np1 = 9.1 s, 3x faster). RECOMMENDATION: try mpi-gpu with
+     gpuirr.cpu.o (one Makefile line); at np8 it would cut P3+P3c from
+     ~3.5 s toward ~1.5 s. Left unchanged in G0 (composition mirrors the
+     shipped `gpu' variant 1:1); needs its own equiv re-run if adopted.
+
+NEXT (G2, re-ranked by this table)
+  a. ADJUST bookkeeping + OUTPUT dominate -- profile *inside* A2 before
+     any further kernel work (XVPRED/CORE/LAGR split), and consider
+     less-frequent or async OUTPUT.
+  b. gpuirr.cpu vs gpuirr.sse swap for mpi-gpu (finding 5) -- cheap, big.
+  c. True ranged gpupot.gpu.cu kernel (C1 contract already in place) --
+     relevant only at production DTADJ on multi-GPU/large-N.
+  d. Incremental gpunb j-update (C5) -- P6 still small here (0.17 s);
+     re-check at larger N.
+================================================================================

@@ -471,7 +471,27 @@ void GPUNB_devinit(){
 			devid[i] = i;
 		}
 	}
-	
+
+	/* Path B G0 (mpi-gpu): bind each MPI rank to ONE device,
+	   devid[local_rank % numGPU], so np ranks spread over a node's GPUs
+	   (and share fairly when np > nGPU). The rank comes from the launcher
+	   environment, same detection idea as the rank-0 I/O guard in
+	   irrlib/gpuirr.cpp; GPU_LIST (above) still defines the pool being
+	   bound against. NBODY_GPU_RANK_BIND=0 opts out, restoring the
+	   all-GPUs-per-process OMP work sharing. No MPI launcher -> no rank
+	   variable -> serial behaviour unchanged. Covers gpupot.gpu.cu too
+	   (it runs on this thread's device via gpunb_devinit_()). */
+	const char *bind_toggle = getenv("NBODY_GPU_RANK_BIND");
+	if(!(bind_toggle && bind_toggle[0] == '0')){
+		const char *lrank_s = getenv("OMPI_COMM_WORLD_LOCAL_RANK");
+		if(!lrank_s) lrank_s = getenv("MPI_LOCALRANKID");
+		if(!lrank_s) lrank_s = getenv("SLURM_LOCALID");
+		if(lrank_s){
+			devid[0] = devid[atoi(lrank_s) % numGPU];
+			numGPU = 1;
+		}
+	}
+
 	// numGPU = 1;
 #pragma omp parallel
 	{

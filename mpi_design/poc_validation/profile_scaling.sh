@@ -39,7 +39,7 @@ r=\${OMPI_COMM_WORLD_RANK:-0}
 d="$WORK/\${NPTAG}_rank\$r"; rm -rf "\$d"; mkdir -p "\$d"; cd "\$d"
 # lowercase link: gfortran's implicit unit-10 name; Linux FS is case-sensitive
 ln -sf "$WORK/src/Fort.10" ./fort.10; ln -sf "$WORK/src/input_bse" .
-exec "$WORK/src/nbody7b.mpi-cpu" < "$WORK/src/input_run" > run.out 2> err.out
+exec "$WORK/src/$(basename "$BIN")" < "$WORK/src/input_run" > run.out 2> err.out
 EOF
 chmod +x "$WORK/wrap.sh"
 

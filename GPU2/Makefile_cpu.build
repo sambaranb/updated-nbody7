@@ -204,6 +204,14 @@ endif
 mpi-cpu: $(filter-out nbody6_main.o mpi_nbody_stub.o,$(OBJECTS)) nbody6_main_mpi.o mpi_nbody.o
 	$(LD_MPICPU) $(FFLAGS) $(filter-out nbody6_main.o mpi_nbody_stub.o,$(OBJECTS)) nbody6_main_mpi.o mpi_nbody.o $(LDMPICPU_OPT) -o nbody6
 
+# MPI + CUDA variant link (Path B G0, `mpi-gpu'). FC arrives as mpif90 from
+# GPU2/Makefile so the MPI runtime links automatically; the options are the
+# `gpu' link's (C++ stdlib + OpenMP + cudart via LIBCUDA), with the
+# standalone main swapped for the MPI driver and the real MPI wrapper
+# linked, exactly as `mpi-cpu' above.
+mpi-gpu: $(filter-out nbody6_main.o mpi_nbody_stub.o,$(OBJECTS)) nbody6_main_mpi.o mpi_nbody.o
+	$(LD_GPU) $(FFLAGS) $(filter-out nbody6_main.o mpi_nbody_stub.o,$(OBJECTS)) nbody6_main_mpi.o mpi_nbody.o $(LDGPU_OPT) -o nbody6
+
 # Build all objects but skip the final link. Used by the AMUSE worker
 # build, which only needs the .o files (which it then archives into
 # libnbody7.a) and supplies its own main via interface.f90.
