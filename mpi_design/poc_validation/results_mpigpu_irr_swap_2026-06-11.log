@@ -1,0 +1,61 @@
+================================================================================
+mpi-gpu IRREGULAR-PAIR SWAP: portable auto-vectorized sources as default
+================================================================================
+Date     : 2026-06-11
+Branch   : mpi-parallel (follows G0, results_g0_mpi_gpu_2026-06-11.log)
+Host     : gpudyn3 -- A40, CUDA 12.5, 16-core AVX-512 Xeon, Open MPI 4.1.2
+Binary   : GPU2/run_ampere/nbody7b.mpi-gpu (MPIGPU_IRR=cpu, the new default)
+
+WHAT CHANGED (acts on G0 finding 5)
+  GPU2/Makefile: the mpi-gpu CPU-side irregular-force PAIR -- the irregular
+  library and the c.m. neighbour kernel travel together -- now defaults to
+  the portable C++ sources written for the Mac CPU/Metal port:
+      irrlib/gpuirr.cpp + lib/cnbint6.cpp        (MPIGPU_IRR=cpu, default)
+  which gcc -O3 -march=native auto-vectorizes to the host's widest ISA.
+  The original hand-written SSE-intrinsics pair remains selectable for
+  pre-AVX Intel CPUs (their vintage):
+      irrlib/gpuirr.sse.cpp + lib/cnbint.cpp -> cnbint5.cpp  (MPIGPU_IRR=sse)
+  The pairs differ at bit level (summation width/order), so the np1-vs-npK
+  bit-identity guarantee holds WITHIN a pair, not across them. `make clean`
+  required when flipping MPIGPU_IRR (cp -p object aliasing).
+  mpi_design/README.md: mpi-gpu build/run section added.
+
+ACCEPTANCE (same suite as G0, new binary)
+  run_equiv.sh  : PASS -- np1/2/4 bit-identical, all ranks. Smoke banners:
+    "device 0: NVIDIA A40" + "Opening GPUIRR lib. CPU ver." (the CPU-pair
+    identifier; the SSE pair prints "SSE ver.") on every rank.
+  run_io_guard.sh : PASS -- np4 shared dir byte-identical to np1 reference.
+  N=5e4: np2/np4/np8 ADJUST + END RUN physics bit-identical to np1 (both
+    cadences at np8).
+
+MEASURED EFFECT (N=5e4, wall s, rank 0; "sse pair" columns = G0 log)
+
+  asis                  cpu pair          sse pair (G0)
+                      np1     np8         np1     np8
+  P3  irr slice       9.14    1.60       27.35    2.25
+  P7  reg slice       0.22    1.77        0.26    1.78
+  A2  ADJUST tot      8.83   15.65        8.78   15.59
+  P12 OUTPUT          8.13    8.21        8.11    8.41
+  SUM                31.22   35.76       52.35   36.16
+
+  np sweep, cpu pair (asis SUM): np1 31.2, np2 29.5, np4 30.5, np8 35.8
+  adj4x: np1 20.8, np8 27.7 (sse pair: 37.0 / 27.7)
+
+FINDINGS
+  1. The swap delivers exactly the predicted 3x on P3 at np1 (27.3 -> 9.1 s)
+     and drops the np1 total 52.3 -> 31.2 s (asis) / 37.0 -> 20.8 s (adj4x).
+  2. THE STORY FLIPS ON A 1-GPU NODE: np1 now beats np8 (31.2 vs 35.8 s).
+     With P3 only ~9 s, decomposing it (saving ~6 s at np8) no longer pays
+     for the replicated-sweep DRAM contention inside ADJUST (A2 8.8 ->
+     15.6 s) plus GPU sharing (P7 0.22 -> 1.77 s). The sweep minimum is a
+     shallow np2 (29.5 s, ~6% below np1); np1-np4 essentially flat.
+  3. Net best config on gpudyn3 at N=5e4: mpi-gpu np2 = 29.5 s -- 5.6x vs
+     cpu np1 (164.7 s) and 1.7x vs the best mpi-cpu (np8, 51.2 s). For
+     practical purposes the plain np1 GPU run is just as good here.
+  4. Where MPI ranks WILL pay on the GPU build: multi-GPU nodes (one rank
+     per device -- the binding is in place, untested), larger N (P3 grows
+     ~linearly while A2 contention grows with np, not N), and production
+     ADJUST cadences once the A2 residue is trimmed. The G2 priority from
+     G0 stands, sharpened: ADJUST-internals (A2-A1 ~ 15 s at np8, ~9 s of
+     it np-invariant bookkeeping at np1) and OUTPUT (8 s) are the wall.
+================================================================================

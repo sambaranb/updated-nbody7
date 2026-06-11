@@ -11,10 +11,28 @@ validation harnesses and result logs: `poc_validation/`.
 ## Build
 
 ```bash
-conda activate Amuse-env            # or any toolchain with mpif90
+conda activate Amuse-env            # Mac; on Linux hosts with system-wide
+                                    # Open MPI (e.g. gpudyn3) no env needed
 cd GPU2
 make mpi-cpu CXX="$CXX"             # -> GPU2/run_versions/nbody7b.mpi-cpu
 ```
+
+CUDA variant (Path B G0; needs nvcc + an NVIDIA cuda-samples checkout for
+`helper_cuda.h`):
+
+```bash
+make clean                          # REQUIRED when switching variants:
+                                    # targets alias gpunb/gpupot/cnbint/
+                                    # gpuirr .o names via cp -p
+make mpi-gpu SDK_PATH=/usr/local/cuda-samples CUDA_PATH=/usr/local/cuda
+                                    # -> GPU2/run_versions/nbody7b.mpi-gpu
+```
+
+Each rank binds to one GPU (`local_rank % nGPU`; opt-out
+`NBODY_GPU_RANK_BIND=0`). The CPU-side irregular-force pair defaults to the
+portable auto-vectorized sources (3x faster than the hand-SSE pair on
+AVX-512 Xeons); `MPIGPU_IRR=sse` restores the hand-written SSE pair for
+pre-AVX Intel CPUs (bit-identity holds within a pair, not across them).
 
 (Mac toolchain notes — conda clang for `-fopenmp`, system linker via
 `-B/usr/bin`, `-lc++` — are in `01_data_distribution.md` §9.)
