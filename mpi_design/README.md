@@ -29,10 +29,11 @@ make mpi-gpu SDK_PATH=/usr/local/cuda-samples CUDA_PATH=/usr/local/cuda
 ```
 
 Each rank binds to one GPU (`local_rank % nGPU`; opt-out
-`NBODY_GPU_RANK_BIND=0`). The CPU-side irregular-force pair defaults to the
-portable auto-vectorized sources (3x faster than the hand-SSE pair on
-AVX-512 Xeons); `MPIGPU_IRR=sse` restores the hand-written SSE pair for
-pre-AVX Intel CPUs (bit-identity holds within a pair, not across them).
+`NBODY_GPU_RANK_BIND=0`). On both CUDA targets (`gpu` and `mpi-gpu`) the
+CPU-side irregular-force pair defaults to the portable auto-vectorized
+sources (3x faster than the hand-SSE pair on AVX-512 Xeons); `GPUIRR=sse`
+restores the hand-written SSE pair for pre-AVX Intel CPUs (bit-identity
+holds within a pair, not across them).
 
 (Mac toolchain notes — conda clang for `-fopenmp`, system linker via
 `-B/usr/bin`, `-lc++` — are in `01_data_distribution.md` §9.)

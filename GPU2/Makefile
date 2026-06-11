@@ -113,17 +113,41 @@ else
 all: gpu sse
 endif
 
+# CPU-side irregular-force pair for the CUDA targets (gpu, mpi-gpu). The
+# irregular library and the c.m. neighbour kernel travel together:
+#   cpu (default): portable C++ sources (irrlib/gpuirr.cpp + lib/cnbint6.cpp,
+#       written for the Mac CPU/Metal port) -- gcc -O3 -march=native
+#       auto-vectorizes them to the host's widest ISA; measured 3x faster
+#       than the hand-SSE pair on an AVX-512 Xeon (P3 9.1 vs 27.3 s np1,
+#       mpi_design results_g0_mpi_gpu / results_mpigpu_irr_swap logs).
+#   sse: the original hand-written SSE-intrinsics pair (irrlib/
+#       gpuirr.sse.cpp + lib/cnbint.cpp -> cnbint5.cpp), from the pre-AVX
+#       era -- the right choice on old Intel CPUs where -march=native has
+#       no wide vectors to use. Usage: make gpu GPUIRR=sse (mpi-gpu alike).
+# The pairs differ at bit level (summation order/width), so results are
+# reproducible within a pair, not across them. The pair objects are passed
+# to the stage-2 link by NAME (no .o aliasing), so `make all' stays correct;
+# the sse/avx/cpu/metal variants keep their original pairs untouched.
+GPUIRR ?= cpu
+ifeq ($(GPUIRR), sse)
+IRR_OBJS   = gpuirr.o cnbint.o
+IRR_STAGE2 =
+else
+IRR_OBJS   = gpuirr.cpu.o cnbint6.o
+IRR_STAGE2 = GPUIRR_OBJ=gpuirr.cpu.o CNBINT_OBJ=cnbint6.o
+endif
+
 $(BUILD):
 	mkdir -p $(BUILD)
 
 $(RUNDIR):
 	mkdir -p $(RUNDIR)
 
-gpu: gpunb.gpu.o gpupot.gpu.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o mpi_nbody_stub.o | $(BUILD) $(RUNDIR)
+gpu: gpunb.gpu.o gpupot.gpu.o intgrt.o gpucor.o nbintp.o $(IRR_OBJS) nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o mpi_nbody_stub.o | $(BUILD) $(RUNDIR)
 	cp -f gpunb.gpu.o gpunb.o
 	cp -f gpupot.gpu.o gpupot.o
 	cp -f *.o ./$(BUILD)
-	make gpu -C ./$(BUILD) -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC) CUDA_PATH=$(CUDA_PATH)
+	make gpu -C ./$(BUILD) -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC=$(FC) CUDA_PATH=$(CUDA_PATH) $(IRR_STAGE2)
 	mv -f ./$(BUILD)/nbody6 $(RUNDIR)/$(BINNAME).gpu
 
 avx: gpunb.avx.o gpupot.avx.o intgrt.o gpucor.o nbintp.o cnbint.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o gpuirr.o jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o mpi_nbody_stub.o | $(BUILD) $(RUNDIR)
@@ -169,44 +193,21 @@ mpi-cpu: gpunb.cpu.o gpupot.cpu.o intgrt.o gpucor.o nbintp.o cnbint6.o nbint.o s
 	mv -f ./$(BUILD)/nbody6 $(RUNDIR)/$(BINNAME).mpi-cpu
 
 # MPI + CUDA variant `mpi-gpu' (Path B G0). The CUDA force/potential
-# libraries exactly as `gpu' (gpunb.velocity.cu + gpupot.gpu.cu), but
-# linked with mpif90 and wired to the real MPI wrapper + standalone MPI
-# driver, exactly like `mpi-cpu'. Rank->device binding happens inside
-# GPUNB_devinit (lib/gpunb.velocity.cu): devid[local_rank % numGPU],
-# opt-out NBODY_GPU_RANK_BIND=0.
-#
-# MPIGPU_IRR selects the CPU-side irregular-force pair, which travels
-# together (irregular library + c.m. neighbour kernel):
-#   cpu (default): portable C++ sources (irrlib/gpuirr.cpp + lib/cnbint6.cpp,
-#       written for the Mac CPU/Metal port) -- gcc -O3 -march=native
-#       auto-vectorizes these to the host's widest ISA; measured 3x faster
-#       than the hand-SSE pair on an AVX-512 Xeon (P3 9.1 vs 27.3 s np1,
-#       results_g0_mpi_gpu_2026-06-11.log finding 5).
-#   sse: the original hand-written SSE-intrinsics pair (irrlib/
-#       gpuirr.sse.cpp + lib/cnbint.cpp -> cnbint5.cpp), from the pre-AVX
-#       era -- the right choice on old Intel CPUs where -march=native has
-#       no wide vectors to use. Usage: make mpi-gpu MPIGPU_IRR=sse
-# The two pairs differ at bit level (summation order/width), so np1-vs-npK
-# bit-identity holds WITHIN a pair, not across them.
-# NOTE: variant targets alias gpunb.o/gpupot.o/cnbint.o/gpuirr.o via
-# cp -p, so run `make clean` when switching variants (or MPIGPU_IRR) in
-# the same tree. Executable: $(RUNDIR)/$(BINNAME).mpi-gpu.
-MPIGPU_IRR ?= cpu
-ifeq ($(MPIGPU_IRR), sse)
-MPIGPU_IRR_OBJS = gpuirr.o cnbint.o
-else
-MPIGPU_IRR_OBJS = gpuirr.cpu.o cnbint6.o
-endif
-
-mpi-gpu: gpunb.gpu.o gpupot.gpu.o intgrt.o gpucor.o nbintp.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o $(MPIGPU_IRR_OBJS) jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o mpi_nbody.o nbody6_main_mpi.o | $(BUILD) $(RUNDIR)
+# libraries exactly as `gpu' (gpunb.velocity.cu + gpupot.gpu.cu) and the
+# same GPUIRR pair selection (see above), but linked with mpif90 and wired
+# to the real MPI wrapper + standalone MPI driver, exactly like `mpi-cpu'.
+# Rank->device binding happens inside GPUNB_devinit
+# (lib/gpunb.velocity.cu): devid[local_rank % numGPU], opt-out
+# NBODY_GPU_RANK_BIND=0. The np1-vs-npK bit-identity guarantee holds
+# within a GPUIRR pair, not across them.
+# NOTE: gpunb.o/gpupot.o are still aliased via cp -f by every variant
+# target, so run `make clean` when switching variants in the same tree.
+# Executable: $(RUNDIR)/$(BINNAME).mpi-gpu.
+mpi-gpu: gpunb.gpu.o gpupot.gpu.o intgrt.o gpucor.o nbintp.o nbint.o start.o adjust.o energy2.o phicor.o cmfirr.o cmfirr2.o checkl2.o kspert.o swap.o scale.o wtime.o cxvpred.o $(IRR_OBJS) jpred.o jpred2.o fpcorr2.o repair.o sweep2.o ksres3.o check3.o bhplot.o fpoly0.o kspinit.o kspreg.o mpi_nbody.o nbody6_main_mpi.o | $(BUILD) $(RUNDIR)
 	cp -f gpunb.gpu.o gpunb.o
 	cp -f gpupot.gpu.o gpupot.o
-ifneq ($(MPIGPU_IRR), sse)
-	cp -p cnbint6.o cnbint.o
-	cp -p gpuirr.cpu.o gpuirr.o
-endif
 	cp -f *.o ./$(BUILD)
-	make mpi-gpu -C ./$(BUILD) -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC="$(MPIFC)" CUDA_PATH=$(CUDA_PATH)
+	make mpi-gpu -C ./$(BUILD) -f $(shell pwd)/Makefile_cpu.build -j4 $(MKOPTIONS) FC="$(MPIFC)" CUDA_PATH=$(CUDA_PATH) $(IRR_STAGE2)
 	mv -f ./$(BUILD)/nbody6 $(RUNDIR)/$(BINNAME).mpi-gpu
 
 # Same Stage-1 + Stage-2 object compilation as `cpu`, but stops before

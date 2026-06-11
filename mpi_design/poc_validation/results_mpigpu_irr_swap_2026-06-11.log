@@ -58,4 +58,32 @@ FINDINGS
      ADJUST cadences once the A2 residue is trimmed. The G2 priority from
      G0 stands, sharpened: ADJUST-internals (A2-A1 ~ 15 s at np8, ~9 s of
      it np-invariant bookkeeping at np1) and OUTPUT (8 s) are the wall.
+
+--------------------------------------------------------------------------------
+ADDENDUM (same day): serial `gpu' target de-SSE'd, knob generalized to GPUIRR
+--------------------------------------------------------------------------------
+  The serial `make gpu' target now uses the same pair selection; the knob
+  is GPUIRR (cpu default / sse fallback), shared by gpu and mpi-gpu. To
+  keep `make all' (gpu + sse in ONE invocation) correct, the pair objects
+  are passed to the stage-2 link BY NAME (GPUIRR_OBJ/CNBINT_OBJ vars in
+  Makefile_cpu.build) instead of cp -p aliasing -- an alias would survive
+  make's timestamp check and silently feed the cpu pair into the sse
+  variant. Verified by dry-run: `make all' compiles gpuirr.sse.cpp +
+  cnbint.cpp for the sse variant while the gpu variant links
+  gpuirr.cpu.o + cnbint6.o.
+  The AMUSE *-objects targets are deliberately untouched (gpu-objects
+  still links the SSE pair): the four-host AMUSE v1 sign-off stays valid;
+  swapping there would need its own AMUSE-side revalidation.
+  NOTE: nbody7b.gpu results change at bit level vs pre-swap gpu builds
+  (different irregular kernel); within-build reproducibility unaffected.
+
+  Validation (gpudyn3):
+  - make gpu && make mpi-gpu: both link gpuirr.cpu.o + cnbint6.o by name.
+  - Serial nbody7b.gpu smoke (13049-body BSE, OMP=1): "device 0: NVIDIA
+    A40" + "Opening GPUIRR lib. CPU ver." banners, END RUN ok.
+  - CROSS-CHECK: serial nbody7b.gpu ADJUST/END-RUN physics lines
+    bit-identical to nbody7b.mpi-gpu np1 (same pair; NRANKS=1 takes the
+    original serial path) -- the de-SSE'd serial target reproduces the
+    fully validated mpi-gpu stream exactly.
+  - run_equiv.sh on the rebuilt mpi-gpu: PASS (np1/2/4 bit-identical).
 ================================================================================

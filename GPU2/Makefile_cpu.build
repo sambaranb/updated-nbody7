@@ -160,7 +160,13 @@ jpred2.f jpred.f ksres3.f nbintp.f phicor.f repair.f sweep2.f bhplot.f \
 fpoly0.f kspinit.f kspreg.f
 
 OBJECTS = $(SOURCE:.f=.o)
-OBJECTS += gpuirr.o gpunb.o gpupot.o wtime.o cnbint.o cxvpred.o
+# CPU-side irregular pair objects. The CUDA targets (gpu, mpi-gpu) pass the
+# portable pair (GPUIRR_OBJ=gpuirr.cpu.o CNBINT_OBJ=cnbint6.o) explicitly,
+# so no stage-1 .o aliasing is needed and `make all' (gpu + sse in one
+# invocation) links the correct library into each variant.
+GPUIRR_OBJ ?= gpuirr.o
+CNBINT_OBJ ?= cnbint.o
+OBJECTS += $(GPUIRR_OBJ) gpunb.o gpupot.o wtime.o $(CNBINT_OBJ) cxvpred.o
 # Path B: the no-op MPI stub (NBODY_MPI_INIT/FINALIZE, NBODY_REGF_RANGE/
 # GATHER, /MPICOMM/ BLOCK DATA) links into every serial / AMUSE build so the
 # wrapper calls added to the shared intgrt.omp.f resolve (NRANKS=1 -> serial
