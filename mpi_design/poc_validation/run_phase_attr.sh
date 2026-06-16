@@ -60,7 +60,7 @@ for CFG in asis adj4x; do
     for NP in $NPLIST; do
         TAG="${CFG}_np${NP}"
         echo; echo "--- $TAG ---"
-        grep -A18 'PHASE TIMERS' "$WORK/${TAG}_rank0/run.out" 2>/dev/null
+        grep -A26 'PHASE TIMERS' "$WORK/${TAG}_rank0/run.out" 2>/dev/null
     done
 done
 echo; echo "rank imbalance (np8 asis, P3+P7 slice seconds per rank):"
@@ -70,4 +70,11 @@ for r in 0 1 2 3 4 5 6 7; do
     p3=$(grep 'P3  irr force slice' "$f" | awk '{print $5}')
     p7=$(grep 'P7  reg force slice' "$f" | awk '{print $5}')
     echo "  rank$r: P3=$p3  P7=$p7"
+done
+echo; echo "ADJUST replicated O(N) sweep per rank (np8 asis, A2s seconds):"
+for r in 0 1 2 3 4 5 6 7; do
+    f="$WORK/asis_np8_rank$r/run.out"
+    [ -f "$f" ] || continue
+    a2s=$(grep 'A2s serial' "$f" | awk '{print $5}')
+    echo "  rank$r: A2s=$a2s"
 done

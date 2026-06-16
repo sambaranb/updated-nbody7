@@ -13,7 +13,9 @@
 *
 *       Predict X & XDOT for all particles (except unperturbed pairs).
       CALL NBODY_PHT_ON(15)
+      CALL NBODY_PHT_ON(17)
       CALL XVPRED(IFIRST,NTOT)
+      CALL NBODY_PHT_OFF(17)
 *
 *       Obtain the total energy at current time using GPU for potentials.
       CALL NBODY_PHT_ON(14)
@@ -21,6 +23,9 @@
       CALL NBODY_PHT_OFF(14)
 *
 *       Initialize c.m. terms.
+*       A2s: time the replicated O(N) bookkeeping sweeps (this c.m./ang-mom
+*       loop + the neighbour loop below) -- the copy-algorithm tax suspect.
+      CALL NBODY_PHT_ON(18)
       DO 10 K = 1,3
           CMR(K) = 0.0D0
           CMRDOT(K) = 0.0D0
@@ -43,6 +48,7 @@
           AZ = AZ + BODY(I)*(X(1,I)*XDOT(2,I) - X(2,I)*XDOT(1,I))
           ZM = ZM + BODY(I)*(X(1,I)**2 + X(2,I)**2)
    20 CONTINUE
+      CALL NBODY_PHT_OFF(18)
 *
 *       Form c.m. coordinates & velocities (vectors & scalars).
       DO 25 K = 1,3
@@ -112,12 +118,14 @@
       RSCALE = 0.5*ZMASS**2/POT
 *
 *       Determine average neighbour number and smallest neighbour sphere.
+      CALL NBODY_PHT_ON(18)
       NNB = 0
       RS0 = RSCALE
       DO 30 I = IFIRST,NTOT
           NNB = NNB + LIST(1,I)
           IF (LIST(1,I).GT.0) RS0 = MIN(RS0,RS(I))
    30 CONTINUE
+      CALL NBODY_PHT_OFF(18)
       NNB = NNB/(N - NPAIRS)
 *
 *       Use current value if minimum neighbour sphere not implemented.
@@ -125,7 +133,9 @@
 *
 *       Find density centre & core radius (Casertano & Hut, Ap.J. 298, 80).
       IF (N-NPAIRS.GE.20.AND.KZ(29).EQ.0.AND.KZ(5).NE.3) THEN
+          CALL NBODY_PHT_ON(19)
           CALL CORE
+          CALL NBODY_PHT_OFF(19)
       ELSE
           NC = N
           ZMC = ZMASS
@@ -167,7 +177,9 @@
 *
 *       Check optional sorting of Lagrangian radii & half-mass radius.
       IF (KZ(7).GT.0) THEN
+          CALL NBODY_PHT_ON(20)
           CALL LAGR(RDENS)
+          CALL NBODY_PHT_OFF(20)
       END IF
 *
 *       Scale average & maximum core density by the mean value.
@@ -286,12 +298,16 @@
       CALL FLUSH(6)
 *
 *       Perform automatic error control (RETURN on restart with KZ(2) > 1).
+      CALL NBODY_PHT_ON(24)
       CALL CHECK(DE)
+      CALL NBODY_PHT_OFF(24)
       IF (ABS(DE).GT.5.0*QE) GO TO 70
 *
 *       Check for escaper removal.
       IF (KZ(23).GT.0) THEN
+          CALL NBODY_PHT_ON(22)
           CALL ESCAPE
+          CALL NBODY_PHT_OFF(22)
       END IF
 *
 *       Include optional search of unstable triples.
@@ -348,7 +364,9 @@
       IOUT = 0
       IF (TIME.GE.TNEXT) THEN
           CALL NBODY_PHT_ON(16)
+          CALL NBODY_PHT_ON(21)
           CALL OUTPUT
+          CALL NBODY_PHT_OFF(21)
           CALL NBODY_PHT_OFF(16)
           IOUT = 1
 *       Check optional overflow diagnostics (#33 > 1: current & accumulated).
@@ -413,11 +431,13 @@
 *
 *       Save COMMON after energy check (skip TRIPLE, QUAD, CHAIN).
       TDUMP = TIME
+      CALL NBODY_PHT_ON(23)
       IF (KZ(2).GE.1.AND.NSUB.EQ.0) CALL MYDUMP(1,2)
 *       Check COMMON save on fort.1 at main output (#1 = 2).
       IF (KZ(1).EQ.2.AND.NSUB.EQ.0) THEN
           IF (IOUT.GT.0) CALL MYDUMP(1,1)
       END IF
+      CALL NBODY_PHT_OFF(23)
 *
 *       Check termination criteria (TIME > TCRIT, N <= NCRIT & next TADJ).
       IF (TTOT.GE.TCRIT.OR.N.LE.NCRIT.OR.TTOT+DTADJ.GT.TCRIT) THEN
@@ -432,7 +452,9 @@
 *       written by every rank but lands in /dev/null on ranks > 0 when the
 *       broad rank-0 I/O guard is active (or in the per-rank run.out that
 *       equiv_check.py compares cross-rank when it is disabled).
+          CALL NBODY_PHT_ON(23)
           IF (KZ(1).GT.0.AND.NSUB.EQ.0) CALL MYDUMP(1,1)
+          CALL NBODY_PHT_OFF(23)
 *
 *       Close the libraries.
           CALL GPUNB_CLOSE

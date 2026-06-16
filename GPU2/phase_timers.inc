@@ -28,12 +28,25 @@
 *        7 GPUNB_SEND j-refresh       15 ADJUST total (incl. 14)
 *        8 reg force slice (kernel)   16 OUTPUT
 *
+*       ADJUST internals (G2 -- all NESTED inside phase 15 = A2, so they
+*       are excluded from the cycle SUM to avoid double-counting):
+*        17 A2x XVPRED predict-all    21 A2o OUTPUT-in-ADJUST (also in 16)
+*        18 A2s serial O(N) sweeps    22 A2e ESCAPE escaper scan
+*        19 A2c CORE density centre   23 A2d MYDUMP COMMON save (restart I/O)
+*        20 A2l LAGR Lagrangian radii 24 A2k CHECK error control
+*       Derived in the report: A2r = 15-14-17..24 (pure scalar bookkeeping
+*       residue, ~0). Phase 18 accumulates TWO disjoint sweeps per ADJUST
+*       call (c.m./ang-mom loop + neighbour loop), so its n is 2x the ADJUST
+*       count. A2d (MYDUMP) is rank-0-only under the production I/O guard
+*       (NBODY_RANK0_IO=1); under per-rank mode (=0) every rank writes the
+*       full COMMON dump, so np>1 A2d inflates from shared-disk contention.
+*
 ************************************************************************
       SUBROUTINE NBODY_PHT_ON(K)
 *
       INTEGER  K
       INTEGER  NPHT
-      PARAMETER  (NPHT=16)
+      PARAMETER  (NPHT=24)
       REAL*8   PTACC(NPHT)
       INTEGER*8  PTST(NPHT), PTCNT(NPHT)
       INTEGER  PHTENA
@@ -73,7 +86,7 @@
 *
       INTEGER  K
       INTEGER  NPHT
-      PARAMETER  (NPHT=16)
+      PARAMETER  (NPHT=24)
       REAL*8   PTACC(NPHT)
       INTEGER*8  PTST(NPHT), PTCNT(NPHT)
       INTEGER  PHTENA
@@ -103,7 +116,7 @@
 *       checks). Phase 15 includes phase 14; the difference is the
 *       non-ENERGY2 part of ADJUST.
       INTEGER  NPHT
-      PARAMETER  (NPHT=16)
+      PARAMETER  (NPHT=24)
       REAL*8   PTACC(NPHT)
       INTEGER*8  PTST(NPHT), PTCNT(NPHT)
       INTEGER  PHTENA
@@ -111,7 +124,7 @@
       COMMON /PHTCOM/ PTACC, PTST, PTCNT, PHTENA, PTARM
       SAVE /PHTCOM/
       CHARACTER*26  PTNAME(NPHT)
-      REAL*8   PSUM
+      REAL*8   PSUM, ABK
       INTEGER  K
       DATA PTNAME /
      &  'P1  INEXT scheduling      ',
@@ -129,7 +142,15 @@
      &  'P11 MDOT/MLOSS stellar    ',
      &  'A1  ENERGY2 (GPUPOT)      ',
      &  'A2  ADJUST total (incl A1)',
-     &  'P12 OUTPUT                '/
+     &  'P12 OUTPUT                ',
+     &  'A2x XVPRED predict-all    ',
+     &  'A2s serial O(N) sweeps    ',
+     &  'A2c CORE density centre   ',
+     &  'A2l LAGR Lagrangian radii ',
+     &  'A2o OUTPUT (in ADJUST)    ',
+     &  'A2e ESCAPE escaper scan   ',
+     &  'A2d MYDUMP COMMON save    ',
+     &  'A2k CHECK error control   '/
 *
       IF (PHTENA.NE.1) RETURN
 *
@@ -140,11 +161,23 @@
       DO 20 K = 1,NPHT
           WRITE (6,15)  PTNAME(K), PTACC(K), PTCNT(K)
    15     FORMAT (9X,A26,F12.3,' s   n =',I12)
-*       A2 contains A1; exclude the double count from the sum.
-          IF (K.NE.14) PSUM = PSUM + PTACC(K)
+*       Count each wall interval ONCE: phases 14 and 17-21 are nested in
+*       A2 (15) -- exclude them from the additive sum (A2 represents them).
+          IF (K.NE.14.AND.K.LT.17) PSUM = PSUM + PTACC(K)
    20 CONTINUE
+*       A2o (21) is the ADJUST-site OUTPUT, also folded into P12 (16);
+*       16 is counted above, so remove the 15/16 overlap once.
+      PSUM = PSUM - PTACC(21)
+*       Derived ADJUST residue = A2 minus its explicitly-timed sub-phases
+*       (scalar energy/regularization bookkeeping + CHECK/ESCAPE/MYDUMP).
+      ABK = PTACC(15) - PTACC(14) - PTACC(17) - PTACC(18)
+     &      - PTACC(19) - PTACC(20) - PTACC(21) - PTACC(22)
+     &      - PTACC(23) - PTACC(24)
+      WRITE (6,18)  ABK
+   18 FORMAT (9X,'A2r ADJUST residue (other)',F12.3,' s',
+     &        '   (A2 minus A1 + all A2* sub-phases)')
       WRITE (6,25)  PSUM
-   25 FORMAT (9X,'SUM (A1 counted inside A2)',F12.3,' s')
+   25 FORMAT (9X,'SUM (nested phases once)  ',F12.3,' s')
       CALL FLUSH(6)
 *
       RETURN
@@ -155,7 +188,7 @@
 *
 *       PHTENA = -1 marks "environment not read yet" for the lazy init.
       INTEGER  NPHT
-      PARAMETER  (NPHT=16)
+      PARAMETER  (NPHT=24)
       REAL*8   PTACC(NPHT)
       INTEGER*8  PTST(NPHT), PTCNT(NPHT)
       INTEGER  PHTENA
