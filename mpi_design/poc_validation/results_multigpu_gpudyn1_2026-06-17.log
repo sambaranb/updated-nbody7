@@ -1,0 +1,63 @@
+================================================================================
+MULTI-GPU RANK->DEVICE PLACEMENT (nGPU > 1) -- VERIFIED ON A 2-GPU NODE
+================================================================================
+Date     : 2026-06-17
+Branch   : mpi-parallel  (HEAD 14106ca)
+Host     : gpudyn1 -- 2x NVIDIA GeForce RTX 2080 (sm_75, 8 GiB each), CUDA 12.3
+           (V12.3.52, /usr/local/cuda), cuda-samples at /usr/local/cuda-samples,
+           system Open MPI 4.1.2, Intel Xeon Silver 4110 (8 physical cores,
+           SMT2 -> 16). Binary: GPU2/run_turing/nbody7b.mpi-gpu.
+Build    : make clean && make mpi-gpu SDK_PATH=/usr/local/cuda-samples
+           CUDA_PATH=/usr/local/cuda    -> -arch=sm_75 (Makefile auto-detects
+           NVCC_ARCH from nvidia-smi). Local RUNDIR tweak run_versions->run_turing
+           (per-host analogue of run_ampere on gpudyn3; keep uncommitted).
+
+CLOSES THE OPEN ITEM FROM results_g0_mpi_gpu_2026-06-11.log
+  G0 (gpudyn3, single A40) recorded: "Multi-GPU placement (lrank % nGPU with
+  nGPU > 1) is UNTESTED -- this is a 1-GPU node; verify on a multi-GPU host
+  when available." gpudyn1 has two identical RTX 2080s, so this is that host.
+
+PROCEDURE (the gpudyn3 acceptance harness, /tmp staging, sm_75 binary)
+  BIN=$PWD/GPU2/run_turing/nbody7b.mpi-gpu \
+      bash mpi_design/poc_validation/run_equiv.sh /tmp/nb7_turing_equiv
+  NOTE: BIN was set EXPLICITLY. The harness auto-detect
+  `ls GPU2/run_*/nbody7b.mpi-gpu | head -1` resolves to run_ampere/ (sm_86,
+  the gpudyn3 build) alphabetically -- that binary aborts with "no kernel
+  image is available for execution on the device" on the sm_75 2080s.
+  run_equiv.sh: per-rank dirs, OMP_NUM_THREADS=1, NBODY_RANK0_IO=0, np 1/2/4,
+  13049-body BSE input_short to END RUN; ICs from test_cpu_with_bse.
+
+RESULT 1 -- rank->device binding (lrank % nGPU, nGPU = 2), from per-rank err.out
+  np1  rank0 -> device 0
+  np2  rank0 -> device 0   rank1 -> device 1          <- TWO DISTINCT GPUs
+  np4  rank0 -> device 0   rank1 -> device 1
+       rank2 -> device 0   rank3 -> device 1          <- exactly r % 2
+  Every rank reports "#CPU 1, #GPU 1" (bound to ONE device, not all), and
+  "device N: NVIDIA GeForce RTX 2080" naming the actual cudaSetDevice target
+  (cudaGetDeviceProperties on the bound id -- stronger than an nvidia-smi
+  snapshot). Irregular pair = "Opening GPUIRR lib. CPU ver." (the portable
+  auto-vectorized default since d650b2f; AVX-512 on the Xeon Silver).
+
+RESULT 2 -- correctness (run_equiv.sh bit-identity check)
+  >>> PASS: bit-identical across np 1/2/4
+  ADJUST/END-RUN physics (WTIME/CPUTOT/WTOT stripped) byte-identical for
+  np2_rank{0,1} and np4_rank{0,1,2,3} vs the np1_rank0 reference. Splitting
+  the regular force across the two physical 2080s (rank1/3 compute their
+  j-slice on device 1) reproduces the single-GPU answer EXACTLY -- expected,
+  because the two devices are the same sm_75 part (identical kernel
+  summation) and the Allgatherv reduction is rank-ordered/deterministic.
+
+CAVEATS / NOTES
+  - GPUs read 0% util in nvidia-smi polling: input_short is a short run and
+    the per-rank kernel bursts are sub-second on a 2080; the binding is proven
+    by the deterministic device-name print, not by catching the processes.
+  - Cross-arch bit-identity is NOT expected or claimed: an A40 (sm_86) build
+    and a 2080 (sm_75) build differ in the last bits (different kernel
+    summation), per 02_integration_serial_trim.md -- agreement there is
+    physics-level. This log establishes np-invariance ON THIS HOST.
+  - Two mpi-gpu binaries coexist in the tree (run_ampere sm_86, run_turing
+    sm_75). Always pass BIN explicitly on gpudyn1.
+
+STATUS: multi-GPU placement endgame (Path B G0) VERIFIED. Roadmap NEXT:
+        gpudyn2 (if distinct), Marvin HPC multi-node, then mpi-metal.
+================================================================================
