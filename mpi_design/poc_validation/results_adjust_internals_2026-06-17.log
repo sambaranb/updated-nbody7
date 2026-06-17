@@ -1,0 +1,88 @@
+===============================================================================
+G2 -- ADJUST-internals profiling: I/O-mode attribution (DECISIVE / CLOSED)
+Host: gpudyn3 (Linux, 16-core Xeon + 1x NVIDIA A40, sm_86)
+Binary: GPU2/run_ampere/nbody7b.mpi-gpu  (instrumentation commit fcce9d4, NPHT=24)
+Harness: mpi_design/poc_validation/run_io_mode.sh
+Input: input_gen_N50000_eq (N=5e4 Plummer), asis (DTADJ=0.2) + adj4x (DTADJ=0.05)
+Date: 2026-06-17  (instrumentation + first mpi-cpu pass: 2026-06-16)
+===============================================================================
+
+QUESTION
+--------
+The 2026-06-16 mpi-cpu pass (intermediate binary, OLD 7-term residue formula
+A2r = A2-A1-A2x-A2s-A2c-A2l-A2o, which folded MYDUMP/ESCAPE/CHECK INTO A2r) saw
+the ADJUST residue "A2r" explode ~12x from np1->np8 (0.57 -> 6.71 s asis;
+0.76 -> 9.13 s adj4x). Roadmap suspects (XVPRED/CORE/LAGR/serial sweeps) were
+all < 0.2 s -> refuted. Hypothesis: the blow-up is MYDUMP COMMON-dump I/O, made
+8-way disk-contended by the per-rank-dir test harness (NBODY_RANK0_IO=0, every
+rank writes the full ~100s-of-MB dump), and it vanishes under the production
+rank-0 I/O guard (NBODY_RANK0_IO=1, only rank 0 writes).
+
+The current binary (fcce9d4) breaks A2d (MYDUMP, phase 23) out as its own timer
+and uses the 10-term residue (A2r now EXCLUDES A2d/A2e/A2k), so it can attribute
+the blow-up to a single sub-phase. This run measures BOTH I/O modes:
+  io0 : NBODY_RANK0_IO=0, per-rank dirs   -> every rank writes its own dump
+  io1 : NBODY_RANK0_IO=1, ONE shared dir  -> only rank 0 writes (production)
+
+KEY TABLE  (rank-0 cumulative wall seconds; mpi-gpu, A40)
+--------------------------------------------------------
+cell               A2d(MYDUMP)  A2r(resid)  A2(ADJUST total)
+asis_np1_io0            0.563       0.025       8.885
+asis_np1_io1            0.595       0.019       8.948
+asis_np8_io0            8.401       0.011      17.230   <- io0 contention
+asis_np8_io1            0.600       0.057       9.201   <- guard: collapses to ~np1
+adj4x_np1_io0           0.669       0.030       5.038
+adj4x_np1_io1           0.680       0.020       5.062
+adj4x_np8_io0          10.386       0.041      15.255   <- io0 contention
+adj4x_np8_io1           0.746       0.012       5.450   <- guard: collapses to ~np1
+
+FINDINGS
+--------
+1. THE BLOW-UP IS A2d (MYDUMP), NOTHING ELSE. With the 24-phase binary the true
+   residue A2r is 0.01-0.06 s in EVERY cell -- negligible at any np, any cadence.
+   The old "A2r explodes" was 100% MYDUMP I/O hiding inside the old 7-term
+   residue. Confirmed at the sub-phase level.
+
+2. io0 (per-rank dirs) IS the artifact. A2d climbs ~0.6 s (np1) -> 8.4 s
+   (asis np8) / 10.4 s (adj4x np8): a ~14x blow-up = 8-way shared-disk
+   contention from all 8 ranks writing the full COMMON dump. This is a property
+   of the TEST harness, never of production.
+
+3. THE PRODUCTION GUARD ERASES IT. Under io1 (NBODY_RANK0_IO=1, shared dir,
+   only rank 0 writes) A2d at np8 = 0.600 s (asis) / 0.746 s (adj4x) -- i.e.
+   IDENTICAL to np1 (0.595 / 0.680). MYDUMP is np-invariant in production.
+
+4. ADJUST TOTAL AT np8 ~= np1 IN PRODUCTION.
+   asis : A2 np8 io1 = 9.20 s ~= np1 8.95 s  (io0's 17.23 s was the +8 s of
+          MYDUMP contention).
+   adj4x: A2 np8 io1 = 5.45 s ~= np1 5.06 s  (io0's 15.26 s, likewise).
+   ADJUST does NOT degrade with rank count under the production I/O guard.
+
+5. WHAT THE ADJUST WALL ACTUALLY IS (io1, production):
+   A2 = A2o OUTPUT-in-ADJUST (~4.1-8.3 s, file I/O, np-invariant)
+      + A1 ENERGY2/GPUPOT (already MPI-decomposed, C1; scales -- 0.018 s here)
+      + A2d MYDUMP restart dump (~0.6-0.7 s, rank-0-only, np-invariant)
+      + A2e ESCAPE 0.03-0.07 s, A2k CHECK ~0, A2x/A2s/A2c/A2l < 0.2 s, A2r ~0.
+   Every non-trivial term is either np-invariant rank-0 I/O (OUTPUT + MYDUMP)
+   or already decomposed (ENERGY2). There is no replicated O(N)/O(N^2) compute
+   left to parallelise.
+
+6. GUARD HYGIENE (io1 np8): exactly one PHASE TIMERS table, one END RUN, banner
+   "Rank-0 I/O guard active" present, single rank-0 file inventory (no rank>0
+   fort.* leakage). The production launch pattern is clean.
+
+CONCLUSION  -- G2 CLOSED: nothing to cut in ADJUST
+--------------------------------------------------
+The A2-A1 residue is dominated by rank-0-only restart-dump (MYDUMP/A2d) and
+diagnostic OUTPUT (A2o) -- both np-invariant file I/O in production. The np8
+"A2r explosion" reported on 2026-06-16 was entirely an artifact of the per-rank
+-dir test harness (NBODY_RANK0_IO=0) forcing 8-way MYDUMP disk contention; it
+disappears under the production guard. No parallelisation of ADJUST internals
+is warranted. The remaining serial ADJUST cost (OUTPUT/MYDUMP I/O) is inherent
+to writing snapshots and can only be reduced by writing less often / async I/O,
+not by rank decomposition. Roadmap item 1 (G2) is done.
+
+Reproduce:
+  cd mpi_design/poc_validation && ./run_io_mode.sh            # mpi-gpu (default)
+  BIN=$(ls ../../GPU2/run_*/nbody7b.mpi-cpu) ./run_io_mode.sh  # mpi-cpu cross-check
+===============================================================================
