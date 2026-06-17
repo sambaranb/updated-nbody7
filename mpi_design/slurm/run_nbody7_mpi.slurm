@@ -25,7 +25,13 @@
 #SBATCH --nodelist=gpudyn1
 #SBATCH --nodes=1
 #SBATCH --ntasks=2
-#SBATCH --cpus-per-task=1
+# GPU ranks need spare CPU cores for the CUDA driver/runtime HOST threads even
+# though OMP_NUM_THREADS=1: under the Slurm cpuset, --cpus-per-task=1 crams each
+# rank's integrator thread + CUDA helper threads onto one core and kernel
+# launch/sync latency balloons (job 259: 437s vs 273s bare-metal, same np2).
+# 8 cores/rank = the whole 16-core turing node (you already hold both GPUs).
+# For mpi-cpu set this back to 1 (no GPU host threads to feed).
+#SBATCH --cpus-per-task=8
 #SBATCH --gres=gpu:2
 #SBATCH --mem=8G
 #SBATCH --time=01:00:00
