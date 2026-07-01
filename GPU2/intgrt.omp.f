@@ -409,6 +409,18 @@
 *       single rank MYL0=1, MYLEN=NXTLEN and this is the original serial call;
 *       NRANKS=1 also skips the gather -> byte-identical serial behaviour.
       CALL NBODY_REGF_RANGE(NXTLEN,MYL0,MYLEN)
+*       Hybrid (OMP>1) production: every rank evaluates the FULL block with its
+*       OpenMP threads and the per-block-step Allgather below is skipped. The
+*       copy algorithm makes every rank's full-block GF/GFD identical, so this
+*       is bit-identical to the decompose+gather path at any fixed thread count
+*       (GPUIRR_FIRR_VEC(i) is rank-independent) while removing the integrator's
+*       most frequent collective. Mode is chosen in NBODY_MPI_INIT (auto from
+*       OMP_NUM_THREADS, override NBODY_IRR_MPI); see mpi_nbody.h. NRANKS=1
+*       leaves the original full-block serial call unchanged either way.
+      IF (IRR_REPLICATE) THEN
+          MYL0  = 1
+          MYLEN = NXTLEN
+      END IF
       CALL NBODY_PHT_ON(3)
       IF (MYLEN.GT.0) THEN
           CALL GPUIRR_FIRR_VEC(MYLEN,NXTLST(MYL0),GF(1,MYL0),
@@ -416,7 +428,7 @@
       END IF
       CALL NBODY_PHT_OFF(3)
       CALL NBODY_PHT_ON(4)
-      IF (NRANKS.GT.1) THEN
+      IF (NRANKS.GT.1 .AND. .NOT.IRR_REPLICATE) THEN
           CALL NBODY_IRRF_GATHER(NXTLEN,GF,GFD)
       END IF
       CALL NBODY_PHT_OFF(4)

@@ -303,6 +303,15 @@ diagnostics, all ranks reaching END RUN. Caveat unchanged: bit-identicality is a
 pure-MPI (one OpenMP thread/rank) guarantee; hybrid MPI+OpenMP inherits the
 `start.f` FPOLY2 external-field non-determinism documented at `GPU2/start.f:185`.
 
+**Update (2026-06-30): the increment-3 irregular decomposition is now CONDITIONAL.**
+The per-block-step `NBODY_IRRF_GATHER` (phase P3c) is the integrator's most
+frequent collective and, in the OMP=8 hybrid scaling runs, the single largest
+phase at high `np` (89 s at np8, N=75k). For hybrid runs (`OMP_NUM_THREADS>1`) the
+irregular force is now **replicated** per rank (full block, OpenMP-threaded, no
+gather) instead of decomposed; pure-MPI (`OMP=1`) keeps the decomposition. Toggle
+`IRR_REPLICATE` / env `NBODY_IRR_MPI`; bit-identical at fixed thread count. See
+`02_integration_serial_trim.md` §7.
+
 ---
 
 ## 11. Production hardening — broad rank-0 I/O guard (2026-06-10)

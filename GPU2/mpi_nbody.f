@@ -32,7 +32,7 @@
       COMMON /MPILIFE/ WE_INIT
       SAVE   /MPILIFE/
       CHARACTER*16  ENVVAL
-      INTEGER  ENVLEN, ENVSTA
+      INTEGER  ENVLEN, ENVSTA, NTHR, IOS
 *
 *       Start MPI only if no one else already did (safe under AMUSE spawn).
       CALL MPI_INITIALIZED(IFLAG, IERR)
@@ -62,12 +62,45 @@
       END IF
       IF (RANK0_IO.AND.MYRANK.GT.0) CALL NBODY_MPI_IO_GUARD
 *
+*       Irregular-force mode (Path B): replicate the full block on every rank
+*       (OpenMP-threaded, no per-block Allgather) for hybrid runs, or decompose
+*       per-rank + NBODY_IRRF_GATHER for pure-MPI. Auto from OMP_NUM_THREADS
+*       (> 1 -> replicate, since OpenMP then parallelises the irregular force
+*       within the node and the per-block-step gather is pure overhead);
+*       NBODY_IRR_MPI overrides (1 -> decompose, 0 -> replicate). The detection
+*       reads the environment (mpi_nbody.f is built without -fopenmp, so no
+*       omp_get_max_threads); set OMP_NUM_THREADS explicitly, as the Slurm
+*       launchers do. Rationale + bit-identity argument in mpi_nbody.h.
+      IRR_REPLICATE = .FALSE.
+      IF (IS_PARALLEL) THEN
+          NTHR = 1
+          CALL GET_ENVIRONMENT_VARIABLE('OMP_NUM_THREADS',ENVVAL,
+     &                                  ENVLEN,ENVSTA)
+          IF (ENVSTA.EQ.0.AND.ENVLEN.GT.0) THEN
+              READ (ENVVAL,*,IOSTAT=IOS) NTHR
+              IF (IOS.NE.0) NTHR = 1
+          END IF
+          IRR_REPLICATE = (NTHR.GT.1)
+          CALL GET_ENVIRONMENT_VARIABLE('NBODY_IRR_MPI',ENVVAL,
+     &                                  ENVLEN,ENVSTA)
+          IF (ENVSTA.EQ.0.AND.ENVLEN.GT.0) THEN
+              IF (ENVVAL(1:1).EQ.'1') IRR_REPLICATE = .FALSE.
+              IF (ENVVAL(1:1).EQ.'0') IRR_REPLICATE = .TRUE.
+          END IF
+      END IF
+*
       IF (MYRANK.EQ.0) THEN
           WRITE (6,10)  NRANKS
    10     FORMAT (/,9X,'NBODY7 internal MPI active:  NRANKS =',I5)
           IF (RANK0_IO.AND.IS_PARALLEL) WRITE (6,11)
    11     FORMAT (9X,'Rank-0 I/O guard active (shared run directory; ',
      &               'disable with NBODY_RANK0_IO=0)')
+          IF (IS_PARALLEL.AND.IRR_REPLICATE) WRITE (6,12)
+   12     FORMAT (9X,'Irregular force: REPLICATED per rank ',
+     &               '(OpenMP; no per-block Allgather)')
+          IF (IS_PARALLEL.AND..NOT.IRR_REPLICATE) WRITE (6,13)
+   13     FORMAT (9X,'Irregular force: MPI-DECOMPOSED ',
+     &               '(per-block Allgather; bit-identity mode)')
           CALL FLUSH(6)
       END IF
 *

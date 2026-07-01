@@ -13,11 +13,12 @@
 *
       INCLUDE 'mpi_nbody.h'
 *
-      NBODY_COMM  = 0
-      MYRANK      = 0
-      NRANKS      = 1
-      IS_PARALLEL = .FALSE.
-      RANK0_IO    = .FALSE.
+      NBODY_COMM    = 0
+      MYRANK        = 0
+      NRANKS        = 1
+      IS_PARALLEL   = .FALSE.
+      RANK0_IO      = .FALSE.
+      IRR_REPLICATE = .FALSE.
 *
       RETURN
       END

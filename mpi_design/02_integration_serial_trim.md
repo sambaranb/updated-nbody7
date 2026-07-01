@@ -211,3 +211,89 @@ speedup **2.94→4.07×** (sweep cadence) and **2.31→4.66×** (4× cadence) �
 (2.3 s); the largest *compute* item is the already-decomposed regular force
 slice. C2/C3 remain on hold pending the GPU-build re-measurement (§4 G1),
 which is the natural next step together with G0 (mpi-gpu wiring).
+
+## 7. Hybrid-mode irregular-force replication — kill the P3c Allgather (2026-06-30)
+
+The Marvin A40 scaling campaign (OMP=8 hybrid runs) revealed that the **largest
+single phase at high `np` is not compute but the irregular-force Allgather**
+(`P3c`, `NBODY_IRRF_GATHER`). From the N=75k phase decomposition
+(`~/nb7_mpi_scaling/phase_tables_N75k_eqmass.txt`, rank-0 cumulative wall s):
+
+| phase (N=75k, OMP=8) | np1 | np2 | np4 | np8 | calls/run |
+|---|---|---|---|---|---|
+| **P3c irr-force Allgather** | 0.02 | 7.5 | 17.9 | **89.4** | ~348,670 |
+| P7c reg-force Allgather | 0.00 | 4.3 | 11.4 | 50.3 | ~27,641 |
+| P3 irr-force slice | 46.0 | 58.5 | 33.6 | 20.6 | |
+| P7 reg-force slice | 10.6 | 9.3 | 8.4 | 8.1 | |
+
+P3c is the largest phase in the whole run at np8 and exceeds P7c at every `np`,
+because the irregular force fires **every block step** (~12.6× more often than
+the regular-due steps that trigger P7c) — it is latency-bound, not bandwidth-
+bound. This is the mechanism behind the campaign's U-shape scaling collapse.
+
+**Correction to the scaling-paper prose.** `nb7_mpi_scaling/README.md` (and the
+matching project memory) describe the exploding collective as *"the per-block-step
+Allgather of all-N predicted positions."* That is wrong on two counts: prediction
+is **not** decomposed (C4; `CXVPRED`/`GPUIRR_PRED_ALL` are replicated, never
+gathered), and the collective that explodes is the irregular force + first
+derivative `GF/GFD` of the **current block** (`NXTLEN` members, not all N). The
+built-in timer label (`P3c irr force Allgather`) is correct; only the narrative
+mislabeled it. Fix the README/paper text before publication.
+
+**The fix (this increment).** When `OMP_NUM_THREADS>1` the irregular force should
+not be MPI-decomposed at all: `GPUIRR_FIRR_VEC` is already OpenMP-threaded
+(`irrlib/gpuirr.cpp`), so each rank can evaluate the **full block** with its
+threads, and under the copy algorithm every rank then holds identical `GF/GFD`
+with **zero communication** — `P3c` disappears. The MPI decomposition was only
+ever a substitute for the OpenMP parallelism we disabled (`OMP=1`) to keep
+bit-identity; once OMP is on in production, OpenMP is the right tool for this
+intra-node, latency-bound phase and MPI should carry only the big *divisible*
+regular force across nodes.
+
+Implemented as a toggle (`IRR_REPLICATE`, common `/MPIIRR/` in `mpi_nbody.h`),
+selected in `NBODY_MPI_INIT`: **auto** = replicate iff `OMP_NUM_THREADS>1`,
+decompose at `OMP=1`; **override** `NBODY_IRR_MPI={0 force replicate, 1 force
+decompose}`. A rank-0 banner reports the active mode. The integrator branch is
+the single site `intgrt.omp.f` ~411–424 (force `MYL0=1,MYLEN=NXTLEN` and skip
+`NBODY_IRRF_GATHER`); serial/AMUSE stubs set it `.FALSE.`. This is the **only**
+per-step irregular gather — the `FPOLY0`/`FPOLY2` start-up gathers are one-time,
+and the secondary `GPUIRR_FIRR_VEC` in the regular block is part of the
+replicated `GPUCOR` (never gathered).
+
+**Bit-identity.** `GPUIRR_FIRR_VEC(i)` depends only on the replicated identical
+j-state, so at a fixed thread count the replicated full-block `GF/GFD` equals the
+decomposed-then-gathered result bit-for-bit. The toggle is a pure compute-vs-comm
+trade-off and cannot change numerics. **Validated** (`poc_validation/
+results_irr_replicate_2026-06-30.log`, Slurm job 26403445, mpi-cpu, OMP=1):
+np2/np4 in *both* forced modes are bit-identical to the np1 serial reference,
+with the banner confirming each mode engaged.
+
+**Companion facts (verified).**
+- The regular force (`lib/gpunb.cpp`) threads over *i* only, each i's full j-sum
+  on one thread → thread-deterministic. So keeping the regular-force MPI
+  decomposition under OMP>1 is safe; this change is surgical to the irregular
+  phase.
+- Removing P3c does **not** by itself make mid-N scale: `P7c` (regular gather,
+  50 s at np8) remains, and at N=75k the regular force is a sliver (8 s) not
+  worth its gather, so single-GPU + OMP stays fastest until the divisible regular
+  chunk grows large (~N=300k, P7=88.7 s). The fix removes a self-inflicted
+  artifact and leaves the clean Amdahl story (divisible regular force vs its
+  gather) — a *stronger* paper result, not a worse one.
+- OMP>1 does **not** add a deadlock gate, and the campaign already proves it: the
+  eqmass decks carry `KZ(14)=3` (MW tidal field) and ran at OMP=8 to END RUN,
+  validated; the earlier OMP=4 hybrid run (job 26270705) confirmed it directly.
+  The MPI Allgathers sit in serial funneled sections between closed `!$omp` loops,
+  the per-block kernels/corrector are thread-deterministic (`start.f:195`), and the
+  FPOLY2 start-up is gathered (`NBODY_FPOLY_GATHER`) so all ranks stay mutually
+  consistent even though `XTRNLD` is not thread-safe with a field. The *only*
+  consequence of OMP>1 is loss of bit-reproducibility **across thread counts**
+  (`start.f:188–199`) — accepted by design in hybrid production. (An earlier
+  caveat called this a "ranks drift and deadlock" risk; that was overcautious and
+  is refuted by the runs above.) If strict cross-thread reproducibility *with* a
+  field is ever wanted, serialise the FPOLY2 loop (drop its `!$omp`, one-time
+  cost). Orthogonal to this increment either way.
+
+**Next:** re-run the N=75k (and N=150k) hybrid sweep with replicate mode (the new
+default at OMP=8) to quantify the wall-clock win (P3c→0) and regenerate the
+scaling/phase figures; expect the U-shape to flatten markedly toward the clean
+regular-force-vs-P7c story.

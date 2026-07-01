@@ -28,3 +28,21 @@
 *       rank performs the original full I/O.
       LOGICAL  RANK0_IO
       COMMON /MPIIOG/ RANK0_IO
+*
+*       Irregular-force parallelisation mode (Path B). When .TRUE. every rank
+*       evaluates the FULL irregular-force block with its OpenMP threads and
+*       the per-block-step Allgather (NBODY_IRRF_GATHER) is SKIPPED: under the
+*       copy algorithm every rank holds the full identical j-state, so every
+*       rank computes identical GF/GFD with NO communication. This is
+*       bit-identical to the decompose+gather path at any fixed thread count
+*       (GPUIRR_FIRR_VEC(i) is independent of which rank evaluates it), while
+*       removing the integrator's most frequent collective (one per block
+*       step, vs the regular gather's one per regular-due step). Default:
+*       .TRUE. for hybrid runs (OMP_NUM_THREADS > 1), .FALSE. for pure-MPI
+*       (OMP_NUM_THREADS = 1, the bit-identity mode where the per-rank slice
+*       is the only available irregular parallelism). Override with the
+*       environment variable NBODY_IRR_MPI (1 = force decompose/gather,
+*       0 = force replicate). Serial / AMUSE builds: always .FALSE. (NRANKS=1,
+*       so the block is already full and the gather is skipped anyway).
+      LOGICAL  IRR_REPLICATE
+      COMMON /MPIIRR/ IRR_REPLICATE

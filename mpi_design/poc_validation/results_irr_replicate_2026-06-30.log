@@ -1,0 +1,46 @@
+IRR_REPLICATE toggle — bit-identity validation (2026-06-30)
+===========================================================
+
+Change: the per-block-step irregular-force MPI decomposition + Allgather
+(NBODY_IRRF_GATHER, phase P3c) is now OPTIONAL. New flag IRR_REPLICATE
+(common /MPIIRR/ in mpi_nbody.h):
+
+  IRR_REPLICATE = .TRUE.   every rank evaluates the FULL NXTLEN block with its
+                           OpenMP threads; the per-block Allgather is SKIPPED
+                           (copy algorithm => every rank's GF/GFD identical).
+  IRR_REPLICATE = .FALSE.  per-rank slice + NBODY_IRRF_GATHER (original path).
+
+Selection in NBODY_MPI_INIT: auto from OMP_NUM_THREADS (>1 -> replicate, the
+hybrid production default; =1 -> decompose, the pure-MPI bit-identity default),
+overridable with env NBODY_IRR_MPI (1 = force decompose, 0 = force replicate).
+Serial / AMUSE builds (stub): always .FALSE. (NRANKS=1 -> full block anyway).
+
+Why bit-identical: GPUIRR_FIRR_VEC(i) depends only on the (replicated, identical)
+j-state, not on which rank evaluates it or on the rank count, so at a fixed
+OpenMP thread count the replicated full-block GF/GFD equals the decomposed-then-
+gathered GF/GFD bit-for-bit. The toggle is therefore a pure compute-vs-comm
+trade-off; it does not change numerics.
+
+Acceptance: 13049-body BSE run (standalone test_cpu_with_bse + input_short,
+TCRIT=1), mpi-cpu binary built on login03 (AMD), OMP_NUM_THREADS=1.
+Slurm job 26403445, mlgpu_devel, 1 node / 4 tasks. Each config in its own dir;
+ADJUST/END-RUN physics lines (wall/CPU columns stripped) diffed vs the np1
+serial reference.
+
+  banner check (mode actually engaged):
+    np2_decomp / np4_decomp -> "Irregular force: MPI-DECOMPOSED (per-block Allgather; bit-identity mode)"
+    np2_replic / np4_replic -> "Irregular force: REPLICATED per rank (OpenMP; no per-block Allgather)"
+
+  bit-identical check (reference = np1; 6 ADJUST/END-RUN lines):
+    OK  np2_decomp
+    OK  np4_decomp
+    OK  np2_replic
+    OK  np4_replic
+
+  >>> PASS: decompose AND replicate both bit-identical to np1 at OMP=1
+
+Launcher: Test_nb7_mpi/irr_toggle_equiv/run_irr_equiv.sbatch (job stdout
+job.26403445.out). The hybrid (OMP>1) wall-clock win — eliminating P3c, which
+the scaling-paper phase decomposition measured at 89.4 s (np8, N=75k), the single
+largest phase — is a performance result to be measured with the N-scaling harness,
+not a bit-identity claim (OMP>1 already breaks bit-identity by design).
